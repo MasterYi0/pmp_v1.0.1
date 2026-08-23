@@ -1,0 +1,38 @@
+{
+  "HomePage": {
+    "hero": {
+      "title": "Start Your Journey Toward PMP® Certification… and Build a Leader’s Mindset",
+      "subtitle": "A comprehensive practical training that bridges exam requirements with real-world practices—preparing you not just to get certified, but to master the knowledge, skills, and mindset needed to manage projects, make strategic decisions, and lead teams professionally.",
+      "description": "Learn to succeed in the exam… Grow to lead in reality.",
+      "startNow": "Start Now"
+    },
+    "title": "pm mindset🚀",
+    "description": "start now!"
+  },
+  "NavBar": {
+    "brand_name": "PM mindset",
+    "courses": "Our Courses",
+    "pmpCert": "PMP Cert",
+    "pmpAgile": "PMP Agile",
+    "soon": "Soon",
+    "about": "Instractor",
+    "contact": "contact us",
+    "login": "Login",
+    "logout": "Logout"
+  },
+  "Dashboard":{
+   "title": " ",
+    "subtitle": " ",
+    "logout": " ",
+    "soon": "next puplish - SOON - XD"
+
+  },
+  "appBar":{
+    "courses": "Courses",
+    "journey": "Journey",
+    "instructor": "Instructor",
+    "faq": "FAQ",
+    "login": "Sign in with Google",
+    "menu": "Menu"
+  }
+}
