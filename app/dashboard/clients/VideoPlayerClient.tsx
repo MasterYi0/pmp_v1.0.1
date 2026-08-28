@@ -613,7 +613,7 @@ export function VideoPlayerClient({ initialLesson, sections, initialProgress, us
                     allowFullScreen
                   />
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-center p-8 relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950">
+                  <div className="w-full h-full flex flex-col items-center justify-center text-center p-8 relative overflow-hidden bg-linear-to-br from-slate-900 via-slate-900/90 to-slate-950">
                     
                     <div className="absolute w-72 h-72 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
                     
@@ -694,3 +694,5 @@ function getYouTubeEmbedUrl(url: string) {
 
   return `https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1`
 }
+
+

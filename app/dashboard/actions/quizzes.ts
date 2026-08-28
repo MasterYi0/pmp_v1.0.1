@@ -351,7 +351,8 @@ export async function submitQuizAttemptAction(
     .eq('quiz_id', quizId)
 
   if (error || !relations || relations.length === 0) {
-    throw new Error('لا توجد أسئلة لهذا الاختبار أو حدث خطأ في الجلب')
+    console.error('لا توجد أسئلة لهذا الاختبار أو حدث خطأ في الجلب')
+    throw new Error('لا توجد أسئلة لهذا الاختبار')
   }
 
   let correctCount = 0
@@ -443,4 +444,230 @@ export async function submitQuizAttemptAction(
 }
 
 
+// 1. بدء محاولة جديدة أو استرجاع المحاولة النشطة إن وجدت
+export async function getOrCreateActiveAttempt(userId: string, quizId: string, totalDurationMin: number) {
+  const supabase = await createClient()
+
+  // البحث عن محاولة نشطة غير مغلقة
+  const { data: existingAttempt, error: fetchError } = await supabase
+    .from('quiz_attempt')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('quiz_id', quizId)
+    .eq('is_closed', false)
+    .single()
+
+  if (existingAttempt) {
+    return existingAttempt
+  }
+
+  // إذا لم توجد، أنشئ محاولة جديدة
+  const initialRemainingSec = totalDurationMin * 60
+  const { data: newAttempt, error: insertError } = await supabase
+    .from('quiz_attempt')
+    .insert({
+      user_id: userId,
+      quiz_id: quizId,
+      is_closed: false,
+      current_question_index: 0,
+      remaining_time_sec: initialRemainingSec,
+      answer_state: {},
+      time_used_min: 0
+    })
+    .select()
+    .single()
+
+  if (insertError) throw new Error(insertError.message)
+  return newAttempt
+}
+
+// 2. تحديث التقدم الحالي (تخزين مؤقت للإجابات، الوقت، ورقم السؤال عند التنقل أو الإيقاف المؤقت)
+export async function updateAttemptProgress(
+  attemptId: string, 
+  currentIndex: number, 
+  remainingSec: number, 
+  answerState: Record<string, any>
+) {
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('quiz_attempt')
+    .update({
+      current_question_index: currentIndex,
+      remaining_time_sec: remainingSec,
+      answer_state: answerState,
+    })
+    .eq('id', attemptId)
+
+  if (error) throw new Error(error.message)
+  return { success: true }
+}
+
+// 3. إنهاء الاختبار وحساب النتيجة النهائية وتخزين التقرير
+export async function submitAndCloseQuiz(
+  attemptId: string,
+  quizId: string,
+  userId: string,
+  finalAnswers: Record<string, any>,
+  totalTimeUsedMin: number
+) {
+  const supabase = await createClient()
+
+  // 1. جلب أسئلة الاختبار مع الإجابات الصحيحة من بنك الأسئلة
+  const { data: quizQuestions, error: qError } = await supabase
+    .from('quiz_questions')
+    .select(`
+      order_index,
+      questions_bank (
+        id,
+        type,
+        options,
+        question
+      )
+    `)
+    .eq('quiz_id', quizId)
+    .order('order_index', { ascending: true })
+
+  if (qError || !quizQuestions) throw new Error('Failed to fetch quiz questions for scoring')
+
+  // 2. جلب شروط النجاح للاختبار (نسبة النجاح المطلوبة)
+  const { data: quizMeta, error: metaError } = await supabase
+    .from('course_quiz')
+    .select('passing_score')
+    .eq('id', quizId)
+    .single()
+
+  if (metaError || !quizMeta) throw new Error('Failed to fetch quiz metadata')
+
+  let correctCount = 0
+  const totalQuestions = quizQuestions.length
+  const evaluatedAnswersState: Record<string, any> = {}
+
+  // 3. تصحيح الأسئلة تلقائياً
+  quizQuestions.forEach((item: any) => {
+    const q = item.questions_bank
+    const userAns = finalAnswers[q.id] // إجابة المستخدم لهذا السؤال
+    let isCorrect = false
+
+    if (q.type === 'single_choice' || q.type === 'true_false') {
+      // اختيار من متعدد أو صح وخطأ (إجابة واحدة صحيحة)
+      const correctOption = q.options.find((opt: any) => opt.is_correct)
+      if (userAns !== undefined && correctOption && String(userAns) === String(correctOption.id)) {
+        isCorrect = true
+      }
+    } else if (q.type === 'multiple_choice') {
+      // اختيار متعدد (أكثر من إجابة صحيحة)
+      const correctIds = q.options.filter((opt: any) => opt.is_correct).map((opt: any) => String(opt.id)).sort()
+      const userIds = Array.isArray(userAns) ? userAns.map((id: any) => String(id)).sort() : []
+      if (
+        userIds.length === correctIds.length &&
+        userIds.every((val, idx) => val === correctIds[idx])
+      ) {
+        isCorrect = true
+      }
+    } else if (q.type === 'drag_and_drop') {
+      // مطابقة / سحب وإفلات (Pairs)
+      // options هنا قد تتضمن مطابقة أزواج صحيحة، نقارن ما أرسله المستخدم
+      const correctPairs = q.options.pairs || q.options // حسب هيكلتكم
+      // مطابقة بسيطة للأزواج
+      let allPairsMatch = true
+      if (userAns && typeof userAns === 'object') {
+        for (const key of Object.keys(correctPairs)) {
+          if (String(userAns[key]) !== String(correctPairs[key])) {
+            allPairsMatch = false
+            break
+          }
+        }
+      } else {
+        allPairsMatch = false
+      }
+      isCorrect = allPairsMatch
+    }
+
+    if (isCorrect) correctCount++
+
+    evaluatedAnswersState[q.id] = {
+      userAnswer: userAns,
+      isCorrect: isCorrect,
+    }
+  })
+
+  // 4. حساب النسبة المئوية
+  const scorePercentage = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0
+  const isPassed = scorePercentage >= quizMeta.passing_score
+
+  // 5. تحديث المحاولة وإغلاقها
+  const { data: updatedAttempt, error: updateError } = await supabase
+    .from('quiz_attempt')
+    .update({
+      score: scorePercentage,
+      is_passed: isPassed,
+      time_used_min: totalTimeUsedMin,
+      answer_state: evaluatedAnswersState,
+      is_closed: true,
+      current_question_index: 0,
+      remaining_time_sec: 0
+    })
+    .eq('id', attemptId)
+    .select()
+    .single()
+
+  if (updateError) throw new Error(updateError.message)
+  
+  // revalidatePath(`/courses`)
+  return updatedAttempt
+}
+
+
+
+
+// 1. جلب المحاولات السابقة للاختبار
+export async function getQuizAttempts(userId: string, quizId: string) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('quiz_attempt') // اسم جدول المحاولات في قاعدة البيانات
+    .select('*')
+    .eq('user_id', userId)
+    .eq('quiz_id', quizId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching quiz attempts:', error)
+    return []
+  }
+  return data || []
+}
+
+// 2. حفظ محاولة اختبار جديدة
+export async function saveQuizAttempt(userId: string, quizId: string, score: number, isPassed: boolean, answerState: any) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('quiz_attempt')
+    .insert([
+      {
+        user_id: userId,
+        quiz_id: quizId,
+        score,
+        is_passed: isPassed,
+        answer_state: answerState,
+        created_at: new Date().toISOString()
+      }
+    ])
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error saving quiz attempt:', error)
+    throw new Error('Failed to save attempt')
+  }
+  return data
+}
+
+
+
+// get all course quizzes by course id
+
+// get user attempts by quiz ids
+
+// 
 
