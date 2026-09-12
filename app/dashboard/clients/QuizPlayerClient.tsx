@@ -1283,356 +1283,369 @@ interface QuizzesClientProps {
   courseSlug: string
 }
 
-export function QuizzesClient({
-  sections,
-  initialQuiz,
-  initialQuestions,
-  initialAttempts,
-  allUserAttempts,
-  userId
-}: QuizzesClientProps) {
-  const locale = useLocale() as 'ar' | 'en'
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    [initialQuiz?.section_id]: true
-  })
+// export function QuizzesClient({
+//   sections,
+//   initialQuiz,
+//   initialQuestions,
+//   initialAttempts,
+//   allUserAttempts,
+//   userId
+// }: QuizzesClientProps) {
+//   const locale = useLocale() as 'ar' | 'en'
+//   const [sidebarOpen, setSidebarOpen] = useState(true)
+//   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+//     [initialQuiz?.section_id]: true
+//   })
 
-  const [currentQuiz, setCurrentQuiz] = useState(initialQuiz)
-  const [questions, setQuestions] = useState(initialQuestions)
-  const [quizAttempts, setQuizAttempts] = useState(initialAttempts)
+//   const [currentQuiz, setCurrentQuiz] = useState(initialQuiz)
+//   const [questions, setQuestions] = useState(initialQuestions)
+//   const [quizAttempts, setQuizAttempts] = useState(initialAttempts)
 
-  // حالات سير العمل للاختبار الحالي
-  const [quizState, setQuizState] = useState<'intro' | 'active' | 'paused' | 'report'>('intro')
-  const [currentAttempt, setCurrentAttempt] = useState<any>(null)
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [userAnswers, setUserAnswers] = useState<Record<string, any>>({})
-  const [flags, setFlags] = useState<Record<string, boolean>>({})
-  const [showTranslation, setShowTranslation] = useState(false)
-  const [showExplanation, setShowExplanation] = useState(false)
+//   // حالات سير العمل للاختبار الحالي
+//   const [quizState, setQuizState] = useState<'intro' | 'active' | 'paused' | 'report'>('intro')
+//   const [currentAttempt, setCurrentAttempt] = useState<any>(null)
+//   const [currentIndex, setCurrentIndex] = useState(0)
+//   const [userAnswers, setUserAnswers] = useState<Record<string, any>>({})
+//   const [flags, setFlags] = useState<Record<string, boolean>>({})
+//   const [showTranslation, setShowTranslation] = useState(false)
+//   const [showExplanation, setShowExplanation] = useState(false)
   
-  const [remainingSec, setRemainingSec] = useState(currentQuiz.duration_min * 60)
-  const [timerActive, setTimerActive] = useState(false)
-  const [lastReportData, setLastReportData] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<'summary' | 'detailed'>('summary')
+//   const [remainingSec, setRemainingSec] = useState(currentQuiz.duration_min * 60)
+//   const [timerActive, setTimerActive] = useState(false)
+//   const [lastReportData, setLastReportData] = useState<any>(null)
+//   const [activeTab, setActiveTab] = useState<'summary' | 'detailed'>('summary')
 
-  // التايمر التنازلي
-  useEffect(() => {
-    let interval: any = null
-    if (quizState === 'active' && timerActive && remainingSec > 0) {
-      interval = setInterval(() => {
-        setRemainingSec(prev => {
-          if (prev <= 1) {
-            clearInterval(interval)
-            handleFinishQuiz()
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-    }
-    return () => clearInterval(interval)
-  }, [quizState, timerActive, remainingSec])
+//   // التايمر التنازلي
+//   useEffect(() => {
+//     let interval: any = null
+//     if (quizState === 'active' && timerActive && remainingSec > 0) {
+//       interval = setInterval(() => {
+//         setRemainingSec(prev => {
+//           if (prev <= 1) {
+//             clearInterval(interval)
+//             handleFinishQuiz()
+//             return 0
+//           }
+//           return prev - 1
+//         })
+//       }, 1000)
+//     }
+//     return () => clearInterval(interval)
+//   }, [quizState, timerActive, remainingSec])
 
-  // عند تغيير الاختبار من القائمة الجانبية
-  const handleSelectQuiz = (quiz: any) => {
-    setCurrentQuiz(quiz)
-    setQuizState('intro')
-    setTimerActive(false)
-    setRemainingSec(quiz.duration_min * 60)
-    setCurrentIndex(0)
-    setUserAnswers({})
-    // تحديث الهيستوري الخاص بهذا الاختبار من المجموع الكلي للمحاولات
-    const filtered = allUserAttempts.filter(att => att.quiz_id === quiz.id)
-    setQuizAttempts(filtered)
-  }
+//   // عند تغيير الاختبار من القائمة الجانبية
+//   const handleSelectQuiz = (quiz: any) => {
+//     setCurrentQuiz(quiz)
+//     setQuizState('intro')
+//     setTimerActive(false)
+//     setRemainingSec(quiz.duration_min * 60)
+//     setCurrentIndex(0)
+//     setUserAnswers({})
+//     // تحديث الهيستوري الخاص بهذا الاختبار من المجموع الكلي للمحاولات
+//     const filtered = allUserAttempts.filter(att => att.quiz_id === quiz.id)
+//     setQuizAttempts(filtered)
+//   }
 
-  // بدء الاختبار أو استئنافه
-  const handleStartQuiz = async () => {
-    try {
-      const attempt = await getOrCreateActiveAttempt(userId, currentQuiz.id, currentQuiz.duration_min)
-      setCurrentAttempt(attempt)
+//   // بدء الاختبار أو استئنافه
+//   const handleStartQuiz = async () => {
+//     try {
+//       const attempt = await getOrCreateActiveAttempt(userId, currentQuiz.id, currentQuiz.duration_min)
+//       setCurrentAttempt(attempt)
       
-      if (attempt.answer_state && Object.keys(attempt.answer_state).length > 0) {
-        setCurrentIndex(attempt.current_question_index || 0)
-        setRemainingSec(attempt.remaining_time_sec || currentQuiz.duration_min * 60)
-      }
+//       if (attempt.answer_state && Object.keys(attempt.answer_state).length > 0) {
+//         setCurrentIndex(attempt.current_question_index || 0)
+//         setRemainingSec(attempt.remaining_time_sec || currentQuiz.duration_min * 60)
+//       }
 
-      setQuizState('active')
-      setTimerActive(true)
-    } catch (error) {
-      console.error('Failed to start quiz', error)
-    }
-  }
+//       setQuizState('active')
+//       setTimerActive(true)
+//     } catch (error) {
+//       console.error('Failed to start quiz', error)
+//     }
+//   }
 
-  const handlePauseQuiz = async () => {
-    setTimerActive(false)
-    setQuizState('paused')
-    if (currentAttempt) {
-      await updateAttemptProgress(currentAttempt.id, currentIndex, remainingSec, userAnswers)
-    }
-  }
+//   const handlePauseQuiz = async () => {
+//     setTimerActive(false)
+//     setQuizState('paused')
+//     if (currentAttempt) {
+//       await updateAttemptProgress(currentAttempt.id, currentIndex, remainingSec, userAnswers)
+//     }
+//   }
 
-  const handleFinishQuiz = async () => {
-    if (!currentAttempt) return
-    setTimerActive(false)
-    const totalTimeUsed = Math.round(((currentQuiz.duration_min * 60) - remainingSec) / 60)
+//   const handleFinishQuiz = async () => {
+//     if (!currentAttempt) return
+//     setTimerActive(false)
+//     const totalTimeUsed = Math.round(((currentQuiz.duration_min * 60) - remainingSec) / 60)
     
-    try {
-      const result = await submitAndCloseQuiz(
-        currentAttempt.id,
-        currentQuiz.id,
-        userId,
-        userAnswers,
-        totalTimeUsed > 0 ? totalTimeUsed : 1
-      )
-      setLastReportData(result)
-      setQuizState('report')
-    } catch (error) {
-      console.error('Failed to finish quiz', error)
-    }
-  }
+//     try {
+//       const result = await submitAndCloseQuiz(
+//         currentAttempt.id,
+//         currentQuiz.id,
+//         userId,
+//         userAnswers,
+//         totalTimeUsed > 0 ? totalTimeUsed : 1
+//       )
+//       setLastReportData(result)
+//       setQuizState('report')
+//     } catch (error) {
+//       console.error('Failed to finish quiz', error)
+//     }
+//   }
 
-  const toggleSection = (sectionId: string) => {
-    setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }))
-  }
+//   const toggleSection = (sectionId: string) => {
+//     setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }))
+//   }
 
-  const currentQ = questions[currentIndex]
+//   const currentQ = questions[currentIndex]
 
-  // تحديد حالة إفادة كل اختبار في السايدبار (أخضر لو نجح في أي محاولة، رمادي لو لا)
-  const getQuizStatusColor = (quizId: string) => {
-    const attempts = allUserAttempts.filter(att => att.quiz_id === quizId && att.is_closed)
-    const passed = attempts.some(att => att.is_passed)
-    if (passed) return 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]'
-    if (attempts.length > 0) return 'bg-amber-400' // حاول ولم ينجح بعد
-    return 'bg-slate-700' // لم يبدأ
-  }
+//   // تحديد حالة إفادة كل اختبار في السايدبار (أخضر لو نجح في أي محاولة، رمادي لو لا)
+//   const getQuizStatusColor = (quizId: string) => {
+//     const attempts = allUserAttempts.filter(att => att.quiz_id === quizId && att.is_closed)
+//     const passed = attempts.some(att => att.is_passed)
+//     if (passed) return 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]'
+//     if (attempts.length > 0) return 'bg-amber-400' // حاول ولم ينجح بعد
+//     return 'bg-slate-700' // لم يبدأ
+//   }
 
-  return (
-    <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
+//   return (
+//     <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
       
-      {/* 1. القائمة الجانبية (Sidebar) لجدول المحتويات */}
-      {sidebarOpen && (
-        <aside className="w-80 md:w-96 bg-slate-900/90 backdrop-blur-xl border-r border-slate-800/80 flex flex-col z-20 shadow-2xl transition-all">
-          <div className="p-5 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/50">
-            <div className="flex items-center gap-3 truncate">
-              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
-                <BookOpen className="w-4 h-4" />
-              </div>
-              <span className="font-semibold text-sm truncate text-slate-200">
-                {locale === 'ar' ? sections[0]?.title_ar : sections[0]?.title_en}
-              </span>
-            </div>
-          </div>
+//       {/* 1. القائمة الجانبية (Sidebar) لجدول المحتويات */}
+//       {sidebarOpen && (
+//         <aside className="w-80 md:w-96 bg-slate-900/90 backdrop-blur-xl border-r border-slate-800/80 flex flex-col z-20 shadow-2xl transition-all">
+//           <div className="p-5 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/50">
+//             <div className="flex items-center gap-3 truncate">
+//               <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+//                 <BookOpen className="w-4 h-4" />
+//               </div>
+//               <span className="font-semibold text-sm truncate text-slate-200">
+//                 {locale === 'ar' ? sections[0]?.title_ar : sections[0]?.title_en}
+//               </span>
+//             </div>
+//           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-            {sections.map(section => {
-              const isExpanded = expandedSections[section.id]
-              const quizzesCount = section.course_quiz?.length || 0
+//           <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+//             {sections.map(section => {
+//               const isExpanded = expandedSections[section.id]
+//               const quizzesCount = section.course_quiz?.length || 0
 
-              return (
-                <div key={section.id} className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-900/40">
-                  <button 
-                    onClick={() => toggleSection(section.id)}
-                    className="w-full p-3.5 bg-slate-900/60 hover:bg-slate-800/60 flex justify-between items-center text-start font-medium text-xs md:text-sm text-slate-300 transition-colors"
-                  >
-                    <span className="truncate pe-2">{locale === 'ar' ? section.title_ar : section.title_en}</span>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[11px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
-                        {quizzesCount} {locale === 'ar' ? 'اختبارات' : 'Quizzes'}
-                      </span>
-                      {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-                    </div>
-                  </button>
+//               return (
+//                 <div key={section.id} className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-900/40">
+//                   <button 
+//                     onClick={() => toggleSection(section.id)}
+//                     className="w-full p-3.5 bg-slate-900/60 hover:bg-slate-800/60 flex justify-between items-center text-start font-medium text-xs md:text-sm text-slate-300 transition-colors"
+//                   >
+//                     <span className="truncate pe-2">{locale === 'ar' ? section.title_ar : section.title_en}</span>
+//                     <div className="flex items-center gap-2 shrink-0">
+//                       <span className="text-[11px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
+//                         {quizzesCount} {locale === 'ar' ? 'اختبارات' : 'Quizzes'}
+//                       </span>
+//                       {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+//                     </div>
+//                   </button>
                   
-                  {isExpanded && (
-                    <div className="divide-y divide-slate-800/50 bg-slate-950/20">
-                      {section.course_quiz?.map((quiz: any) => {
-                        const isSelected = currentQuiz?.id === quiz.id
-                        const titleText = locale === 'ar' ? quiz.title?.ar : quiz.title?.en
-                        const dotColor = getQuizStatusColor(quiz.id)
+//                   {isExpanded && (
+//                     <div className="divide-y divide-slate-800/50 bg-slate-950/20">
+//                       {section.course_quiz?.map((quiz: any) => {
+//                         const isSelected = currentQuiz?.id === quiz.id
+//                         const titleText = locale === 'ar' ? quiz.title?.ar : quiz.title?.en
+//                         const dotColor = getQuizStatusColor(quiz.id)
 
-                        return (
-                          <div 
-                            key={quiz.id}
-                            onClick={() => handleSelectQuiz(quiz)}
-                            className={`p-3.5 flex items-center justify-between cursor-pointer transition-all text-xs md:text-sm ${
-                              isSelected 
-                                ? 'bg-indigo-600/15 text-indigo-300 font-medium border-l-4 border-indigo-500' 
-                                : 'hover:bg-slate-800/40 text-slate-400 hover:text-slate-200'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3 truncate">
-                              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${dotColor}`} />
-                              <span className="truncate">{titleText}</span>
-                            </div>
-                            <span className="text-[11px] text-slate-500 shrink-0 font-mono">{quiz.duration_min}د</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </aside>
-      )}
+//                         return (
+//                           <div 
+//                             key={quiz.id}
+//                             onClick={() => handleSelectQuiz(quiz)}
+//                             className={`p-3.5 flex items-center justify-between cursor-pointer transition-all text-xs md:text-sm ${
+//                               isSelected 
+//                                 ? 'bg-indigo-600/15 text-indigo-300 font-medium border-l-4 border-indigo-500' 
+//                                 : 'hover:bg-slate-800/40 text-slate-400 hover:text-slate-200'
+//                             }`}
+//                           >
+//                             <div className="flex items-center gap-3 truncate">
+//                               <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${dotColor}`} />
+//                               <span className="truncate">{titleText}</span>
+//                             </div>
+//                             <span className="text-[11px] text-slate-500 shrink-0 font-mono">{quiz.duration_min}د</span>
+//                           </div>
+//                         )
+//                       })}
+//                     </div>
+//                   )}
+//                 </div>
+//               )
+//             })}
+//           </div>
+//         </aside>
+//       )}
 
-      {/* 2. منطقة العرض الرئيسية */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950">
+//       {/* 2. منطقة العرض الرئيسية */}
+//       <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950">
         
-        {/* الأب بار (App Bar) */}
-        <header className="h-16 bg-slate-900/80 backdrop-blur-md border-b border-slate-800/80 px-6 flex items-center justify-between z-10">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-slate-300 hover:text-white hover:bg-slate-800"
-            >
-              {sidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
-            </Button>
-            <div>
-              <h1 className="font-semibold text-sm md:text-base truncate max-w-md text-slate-200">
-                {currentQuiz?.title ? (locale === 'ar' ? currentQuiz.title.ar : currentQuiz.title.en) : 'اختبار'}
-              </h1>
-              <span className="text-xs text-slate-400">
-                المدة: {currentQuiz.duration_min} دقيقة | نسبة النجاح: {currentQuiz.passing_score}%
-              </span>
-            </div>
-          </div>
+//         {/* الأب بار (App Bar) */}
+//         <header className="h-16 bg-slate-900/80 backdrop-blur-md border-b border-slate-800/80 px-6 flex items-center justify-between z-10">
+//           <div className="flex items-center gap-4">
+//             <Button 
+//               variant="ghost" 
+//               size="icon" 
+//               onClick={() => setSidebarOpen(!sidebarOpen)}
+//               className="text-slate-300 hover:text-white hover:bg-slate-800"
+//             >
+//               {sidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
+//             </Button>
+//                 <a
+//       href="/dashboard" // استبدل المسار بالمسار الصحيح لديك (أو استخدم Link من Next.js إذا كنت تستخدمه)
+//       className="inline-flex items-center gap-1.5 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors shadow-inner"
+//     >
+//       {/* <ArrowLeft className="w-4 h-4 text-white-400" /> */}
+//       <span className="hidden sm:inline">
+//         {locale === 'ar' ? 'الرئيسية' : 'Dashboard'}
+//       </span>
+//     </a>
+//             <div>
+//               <h1 className="font-semibold text-sm md:text-base truncate max-w-md text-slate-200">
+//                 {currentQuiz?.title ? (locale === 'ar' ? currentQuiz.title.ar : currentQuiz.title.en) : 'اختبار'}
+//               </h1>
+//               <span className="text-xs text-slate-400">
+//                 المدة: {currentQuiz.duration_min} دقيقة | نسبة النجاح: {currentQuiz.passing_score}%
+//               </span>
+//             </div>
+//           </div>
 
-          {quizState === 'active' && (
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-lg font-mono text-indigo-400 text-sm">
-                <Clock className="w-4 h-4" />
-                <span>{Math.floor(remainingSec / 60)}:{String(remainingSec % 60).padStart(2, '0')}</span>
-              </div>
-              <Button size="sm" variant="outline" onClick={handlePauseQuiz} className="border-slate-700 text-slate-300">
-                <Pause className="w-4 h-4 me-1" /> إيقاف مؤقت
-              </Button>
-              <Button size="sm" variant="destructive" onClick={handleFinishQuiz}>
-                إنهاء الاختبار
-              </Button>
-            </div>
-          )}
-        </header>
+//           {quizState === 'active' && (
+//             <div className="flex items-center gap-4">
+//               <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-lg font-mono text-indigo-400 text-sm">
+//                 <Clock className="w-4 h-4" />
+//                 <span>{Math.floor(remainingSec / 60)}:{String(remainingSec % 60).padStart(2, '0')}</span>
+//               </div>
+//               <Button size="sm" variant="outline" onClick={handlePauseQuiz} className="border-slate-700 text-slate-300">
+//                 <Pause className="w-4 h-4 me-1" /> إيقاف مؤقت
+//               </Button>
+//               <Button size="sm" variant="destructive" onClick={handleFinishQuiz}>
+//                 إنهاء الاختبار
+//               </Button>
+//             </div>
+//           )}
+//               {/* زر العودة للداشبورد */}
 
-        {/* محتوى الشاشة الرئيسي (قلب الاختبار + الهيستوري السفلي) */}
-        <main className="flex-1 bg-slate-950 flex flex-col items-center justify-start pt-6 md:pt-8 px-4 md:px-10 overflow-y-auto space-y-10">
+//         </header>
+
+//         {/* محتوى الشاشة الرئيسي (قلب الاختبار + الهيستوري السفلي) */}
+//         <main className="flex-1 bg-slate-950 flex flex-col items-center justify-start pt-6 md:pt-8 px-4 md:px-10 overflow-y-auto space-y-10">
           
-          {/* قلب الاختبار */}
-          <div className="w-full max-w-4xl space-y-6">
+//           {/* قلب الاختبار */}
+//           <div className="w-full max-w-4xl space-y-6">
             
-            {/* الحالة 1: شاشة البداية والتعليمات */}
-            {quizState === 'intro' && (
-              <div className="w-full bg-slate-900/60 border border-slate-800 rounded-2xl p-8 shadow-2xl space-y-6">
-                <div className="space-y-2">
-                  <span className="text-xs uppercase tracking-widest text-indigo-400 font-semibold">جاهز للاختبار</span>
-                  <h2 className="text-xl md:text-2xl font-bold text-slate-100">
-                    {locale === 'ar' ? currentQuiz?.title?.ar : currentQuiz?.title?.en}
-                  </h2>
-                </div>
+//             {/* الحالة 1: شاشة البداية والتعليمات */}
+//             {quizState === 'intro' && (
+//               <div className="w-full bg-slate-900/60 border border-slate-800 rounded-2xl p-8 shadow-2xl space-y-6">
+//                 <div className="space-y-2">
+//                   <span className="text-xs uppercase tracking-widest text-indigo-400 font-semibold">جاهز للاختبار</span>
+//                   <h2 className="text-xl md:text-2xl font-bold text-slate-100">
+//                     {locale === 'ar' ? currentQuiz?.title?.ar : currentQuiz?.title?.en}
+//                   </h2>
+//                 </div>
 
-                <div className="space-y-2 text-sm text-slate-300">
-                  <h4 className="font-semibold text-slate-200">التعليمات:</h4>
-                  <p className="bg-slate-950 p-4 rounded-xl border border-slate-900 text-slate-400">
-                    {locale === 'ar' ? currentQuiz?.instructions?.ar : currentQuiz?.instructions?.en || 'لا توجد تعليمات خاصة.'}
-                  </p>
-                </div>
+//                 <div className="space-y-2 text-sm text-slate-300">
+//                   <h4 className="font-semibold text-slate-200">التعليمات:</h4>
+//                   <p className="bg-slate-950 p-4 rounded-xl border border-slate-900 text-slate-400">
+//                     {locale === 'ar' ? currentQuiz?.instructions?.ar : currentQuiz?.instructions?.en || 'لا توجد تعليمات خاصة.'}
+//                   </p>
+//                 </div>
 
-                <Button onClick={handleStartQuiz} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl text-base font-medium shadow-lg">
-                  بدء الاختبار الآن
-                </Button>
-              </div>
-            )}
+//                 <Button onClick={handleStartQuiz} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl text-base font-medium shadow-lg">
+//                   بدء الاختبار الآن
+//                 </Button>
+//               </div>
+//             )}
 
-            {/* الحالة 2: شاشة الإيقاف المؤقت */}
-            {quizState === 'paused' && (
-              <div className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center space-y-6">
-                <h3 className="text-xl font-bold text-slate-100">تم إيقاف الاختبار مؤقتاً</h3>
-                <p className="text-sm text-slate-400">يمكنك الاستئناف في أي وقت.</p>
-                <div className="flex gap-3 justify-center">
-                  <Button onClick={() => setQuizState('intro')} variant="outline" className="border-slate-700 text-slate-300">
-                    الرئيسية
-                  </Button>
-                  <Button onClick={() => { setQuizState('active'); setTimerActive(true); }} className="bg-indigo-600 hover:bg-indigo-500">
-                    استئناف
-                  </Button>
-                </div>
-              </div>
-            )}
+//             {/* الحالة 2: شاشة الإيقاف المؤقت */}
+//             {quizState === 'paused' && (
+//               <div className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center space-y-6">
+//                 <h3 className="text-xl font-bold text-slate-100">تم إيقاف الاختبار مؤقتاً</h3>
+//                 <p className="text-sm text-slate-400">يمكنك الاستئناف في أي وقت.</p>
+//                 <div className="flex gap-3 justify-center">
+//                   <Button onClick={() => setQuizState('intro')} variant="outline" className="border-slate-700 text-slate-300">
+//                     الرئيسية
+//                   </Button>
+//                   <Button onClick={() => { setQuizState('active'); setTimerActive(true); }} className="bg-indigo-600 hover:bg-indigo-500">
+//                     استئناف
+//                   </Button>
+//                 </div>
+//               </div>
+//             )}
 
-            {/* الحالة 3: شاشة أسئلة الاختبار التفاعلية */}
-            {quizState === 'active' && currentQ && (
-              <div className="w-full space-y-6">
-                <div className="flex items-center justify-between bg-slate-900/60 p-4 rounded-xl border border-slate-800">
-                  <span className="text-xs font-mono bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full border border-indigo-500/20">
-                    السؤال {currentIndex + 1} من {questions.length}
-                  </span>
-                  <Button size="sm" variant="ghost" onClick={() => setShowTranslation(!showTranslation)} className="text-slate-400 hover:text-white">
-                    <Globe className="w-4 h-4 me-1" /> {showTranslation ? 'إخفاء الترجمة' : 'عرض الترجمة'}
-                  </Button>
-                </div>
+//             {/* الحالة 3: شاشة أسئلة الاختبار التفاعلية */}
+//             {quizState === 'active' && currentQ && (
+//               <div className="w-full space-y-6">
+//                 <div className="flex items-center justify-between bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+//                   <span className="text-xs font-mono bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full border border-indigo-500/20">
+//                     السؤال {currentIndex + 1} من {questions.length}
+//                   </span>
+//                   <Button size="sm" variant="ghost" onClick={() => setShowTranslation(!showTranslation)} className="text-slate-400 hover:text-white">
+//                     <Globe className="w-4 h-4 me-1" /> {showTranslation ? 'إخفاء الترجمة' : 'عرض الترجمة'}
+//                   </Button>
+//                 </div>
 
-                <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
-                  <h3 className="text-lg font-semibold text-slate-100">
-                    {locale === 'ar' ? currentQ.question?.ar : currentQ.question?.en}
-                  </h3>
+//                 <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
+//                   <h3 className="text-lg font-semibold text-slate-100">
+//                     {locale === 'ar' ? currentQ.question?.ar : currentQ.question?.en}
+//                   </h3>
                   
-                  <div className="space-y-3 pt-4">
-                    {Array.isArray(currentQ.options) && currentQ.options.map((opt: any) => (
-                      <div key={opt.id} className="p-4 rounded-xl border border-slate-800 bg-slate-950/40 text-slate-300">
-                        {locale === 'ar' ? opt.text?.ar : opt.text?.en}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+//                   <div className="space-y-3 pt-4">
+//                     {Array.isArray(currentQ.options) && currentQ.options.map((opt: any) => (
+//                       <div key={opt.id} className="p-4 rounded-xl border border-slate-800 bg-slate-950/40 text-slate-300">
+//                         {locale === 'ar' ? opt.text?.ar : opt.text?.en}
+//                       </div>
+//                     ))}
+//                   </div>
+//                 </div>
 
-                <div className="flex justify-between pt-4">
-                  <Button disabled={currentIndex === 0} onClick={() => setCurrentIndex(prev => prev - 1)} variant="outline">السابق</Button>
-                  {currentIndex < questions.length - 1 ? (
-                    <Button onClick={() => setCurrentIndex(prev => prev + 1)} className="bg-indigo-600">التالي</Button>
-                  ) : (
-                    <Button onClick={handleFinishQuiz} className="bg-emerald-600">إنهاء الاختبار</Button>
-                  )}
-                </div>
-              </div>
-            )}
+//                 <div className="flex justify-between pt-4">
+//                   <Button disabled={currentIndex === 0} onClick={() => setCurrentIndex(prev => prev - 1)} variant="outline">السابق</Button>
+//                   {currentIndex < questions.length - 1 ? (
+//                     <Button onClick={() => setCurrentIndex(prev => prev + 1)} className="bg-indigo-600">التالي</Button>
+//                   ) : (
+//                     <Button onClick={handleFinishQuiz} className="bg-emerald-600">إنهاء الاختبار</Button>
+//                   )}
+//                 </div>
+//               </div>
+//             )}
 
-          </div>
+//           </div>
 
-          {/* قسم الهيستوري السفلي (كاردات المحاولات السابقة لهذا الاختبار) */}
-          <div className="w-full max-w-4xl pb-12 space-y-4 border-t border-slate-800/80 pt-8">
-            <h3 className="text-base font-semibold text-slate-200">سجل المحاولات السابقة</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {quizAttempts.map((attempt: any) => (
-                <div key={attempt.id} className={`p-4 rounded-xl border flex items-center justify-between ${attempt.is_passed ? 'bg-emerald-950/20 border-emerald-900/50' : 'bg-rose-950/20 border-rose-900/50'}`}>
-                  <div className="space-y-1">
-                    <span className={`text-sm font-bold ${attempt.is_passed ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {attempt.is_passed ? 'ناجح' : 'راسب'} ({attempt.score}%)
-                    </span>
-                    <span className="block text-xs text-slate-400 font-mono">
-                      الوقت المستغرق: {attempt.time_used_min} دقيقة | {new Date(attempt.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <Button size="sm" variant="outline" className="border-slate-700 text-slate-200">
-                    عرض التقرير
-                  </Button>
-                </div>
-              ))}
-              {quizAttempts.length === 0 && (
-                <p className="text-xs text-slate-500 col-span-2">لا توجد محاولات مسجلة لهذا الاختبار حتى الآن.</p>
-              )}
-            </div>
-          </div>
+//           {/* قسم الهيستوري السفلي (كاردات المحاولات السابقة لهذا الاختبار) */}
+//           <div className="w-full max-w-4xl pb-12 space-y-4 border-t border-slate-800/80 pt-8">
+//             <h3 className="text-base font-semibold text-slate-200">سجل المحاولات السابقة</h3>
+//             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//               {quizAttempts.map((attempt: any) => (
+//                 <div key={attempt.id} className={`p-4 rounded-xl border flex items-center justify-between ${attempt.is_passed ? 'bg-emerald-950/20 border-emerald-900/50' : 'bg-rose-950/20 border-rose-900/50'}`}>
+//                   <div className="space-y-1">
+//                     <span className={`text-sm font-bold ${attempt.is_passed ? 'text-emerald-400' : 'text-rose-400'}`}>
+//                       {attempt.is_passed ? 'ناجح' : 'راسب'} ({attempt.score}%)
+//                     </span>
+//                     <span className="block text-xs text-slate-400 font-mono">
+//                       الوقت المستغرق: {attempt.time_used_min} دقيقة | {new Date(attempt.created_at).toLocaleDateString()}
+//                     </span>
+//                   </div>
+//                   <Button size="sm" variant="outline" className="border-slate-700 text-slate-200">
+//                     عرض التقرير
+//                   </Button>
+//                 </div>
+//               ))}
+//               {quizAttempts.length === 0 && (
+//                 <p className="text-xs text-slate-500 col-span-2">لا توجد محاولات مسجلة لهذا الاختبار حتى الآن.</p>
+//               )}
+//             </div>
+//           </div>
 
-        </main>
-      </div>
+//         </main>
+//       </div>
 
-    </div>
-  )
-}
+//     </div>
+//   )
+// }
+
+
 
 
 

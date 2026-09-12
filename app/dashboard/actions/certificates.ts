@@ -98,7 +98,7 @@ const quizIds = quizzes?.map(q => q.id) || []
     passedQuizzesCount = passedSet.size
   }
 
-  const quizProgress = totalQuizzes > 0 ? Math.round((passedQuizzesCount / totalQuizzes) * 100) : 0 // إذا لم تكن هناك اختبارات تعتبر مكتملة افتراضياً
+  const quizProgress = totalQuizzes > 0 ? Math.round((passedQuizzesCount / totalQuizzes) * 100) : 100 // إذا لم تكن هناك اختبارات تعتبر مكتملة افتراضياً
   // const quizProgress = totalQuizzes > 0 ? Math.round((totalQuizzes / totalQuizzes) * 100) : 0
 // console.log("video process",videoProgress,"quiz process",quizProgress,"completedLessons",completedLessons,"ateempts", certificate,totalLessons, totalQuizzes, passedQuizzesCount)
   return {

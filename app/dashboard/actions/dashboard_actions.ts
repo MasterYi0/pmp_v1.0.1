@@ -79,22 +79,32 @@ export async function getDashboardData(userId: string) {
     const progressVideo = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
 
     // ب. حساب إجمالي اختبارات الدورة والاختبارات التي نجح فيها
-    const totalQuizzes = course.course_quizzes?.length || 0
+    const totalQuizzes = course.course_quiz?.length || 0
     let passedQuizzes = 0
 
-    course.course_quizzes?.forEach((quiz: any) => {
+    course.course_quiz?.forEach((quiz: any) => {
       const bestAttempt = bestAttemptsMap.get(quiz.id)
       if (bestAttempt && bestAttempt.is_passed) {
         passedQuizzes++
       }
     })
 
+
+
+
+
+
+
+
+    // let t = 0;
     const progressQuiz = totalQuizzes > 0 ? Math.round((passedQuizzes / totalQuizzes) * 100) : 100
+// if (totalQuizzes === 0){t=100}else{t=Math.round((passedQuizzes / totalQuizzes) * 100)}
+// console.log(passedQuizzes, totalQuizzes, progressQuiz,"hi",course.course_quiz?.length)
 
     return {
       ...enrollment,
       progressVideo,
-      progressQuiz
+       progressQuiz
     }
   })
 
@@ -111,6 +121,7 @@ export async function getDashboardData(userId: string) {
     if (att.is_passed) passedQuizzes++
     else failedQuizzes++
   })
+
 
   // الاختبارات المعلقة أو التي لم تكتمل بعد
   const { count: pendingQuizzesCount } = await supabase

@@ -370,8 +370,8 @@ export type Course = {
 // export const getCourse = (slug: string) => courses.find((c) => c.slug === slug);
 
 export const WHATSAPP_URL =
-  "https://wa.me/201000000000?text=" +
-  encodeURIComponent("مرحبًا، أرغب في التسجيل في دورة PM Mindset");
+  "https://wa.me/966562023009?text=" +
+  encodeURIComponent("مرحبًا، أرغب في التسجيل في احدى دورات PM Mindset");
 
 export const accentVar: Record<Course["accent"], string> = {
   purple: "var(--purple)",

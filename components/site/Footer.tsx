@@ -38,7 +38,7 @@ export function Footer({ courses }: CoursesSectionProps) {
       <li key={c.slug}>
         {isActive ? (
           // لو اكتف: يظهر كـ Link طبيعي قابل للضغط
-          <Link href={`/${locale}/courses/${c.slug}`} className="hover:text-white transition-colors">
+          <Link href={`/courses/${c.slug}`} className="hover:text-white transition-colors">
             {c.title[locale]}
           </Link>
         ) : (

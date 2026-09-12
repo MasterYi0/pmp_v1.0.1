@@ -196,14 +196,14 @@ export function CourseDashboardCard({
   progressVideo = 0, 
   progressQuiz = 0, 
   isEnrolled = true,
-  hasCertificate = false 
+  // hasCertificate = false 
 }: CourseCardProps) {
   const locale = useLocale() as 'ar' | 'en';
   const title = course.title?.[locale] || course.title?.ar || ''
   const shortDesc = course.short?.[locale] || course.short?.ar || ''
   const subtitle = course.subtitle?.[locale] || course.subtitle?.ar || ''
   const accentColor = accentVar[course.accent] || accentVar.default
-
+const hasCertificate = progressVideo === 100 && progressQuiz === 100;
   // 1. كارد الدورات المشترك فيها (أفقي مع التدرج اللوني والدوائر والتقدم)
   if (isEnrolled) {
     return (
@@ -225,7 +225,7 @@ export function CourseDashboardCard({
             src={course.badge || course.image}
             alt={typeof title === 'string' ? title : "Course Badge"}
             loading="lazy"
-            className="relative z-10 size-28 sm:size-32 object-contain drop-shadow-2xl bg-white/10 p-2 rounded-full backdrop-blur-sm"
+            className="relative z-10 size-35 sm:size-40 object-contain drop-shadow-2xl bg-white/10 p-2 rounded-full backdrop-blur-sm"
           />
         </div>
         
@@ -239,7 +239,7 @@ export function CourseDashboardCard({
               <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full shrink-0 ${
                 hasCertificate ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
               }`}>
-                {hasCertificate ? (locale === 'ar' ? "معتمد" : "Certified") : (locale === 'ar' ? "قيد التقدم" : "In Progress")}
+                {hasCertificate ? (locale === 'ar' ? "مكتمل" : "Certified") : (locale === 'ar' ? "قيد التقدم" : "In Progress")}
               </span>
             </div>
 
@@ -351,7 +351,7 @@ export function CourseDashboardCard({
           {shortDesc}
         </p>
 
-        {course.features && course.features.length > 0 && (
+        {/* {course.features && course.features.length > 0 && (
           <ul className="mt-5 grid gap-3">
             {course.features.map((f: any, i: number) => {
               const featureText = typeof f === 'string' ? f : (f[locale] || f.ar || '')
@@ -371,7 +371,7 @@ export function CourseDashboardCard({
               )
             })}
           </ul>
-        )}
+        )} */}
 
         <div className="mt-auto flex items-center gap-3 border-t border-border pt-4">
           <div

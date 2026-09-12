@@ -143,7 +143,7 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
         ))}
       </div>
 
-      <div className="surface-navy mt-10 flex flex-col items-start justify-between gap-6 rounded-[1.5rem] p-8 text-white sm:flex-row sm:items-center">
+      {/* <div className="surface-navy mt-10 flex flex-col items-start justify-between gap-6 rounded-[1.5rem] p-8 text-white sm:flex-row sm:items-center">
         <div>
           <h3 className="text-2xl text-white">
             {locale === 'ar' ? "لست متأكدًا من الدورة المناسبة؟" : "Not sure which course fits?"}
@@ -158,7 +158,7 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
         <Button size="lg" variant="secondary" className="h-12 rounded-xl px-6 font-extrabold" onClick={() => window.open(WHATSAPP_URL, "_blank")}>
           {locale === 'ar' ? "تحدّث مع مستشار" : "Talk to an advisor"}
         </Button>
-      </div>
+      </div> */}
     </section>
   );
 }

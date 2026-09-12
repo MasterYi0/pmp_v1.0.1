@@ -24,19 +24,26 @@ export function AttachmentsClient({ course, attachments}: AttachmentsClientProps
         {/* رأس الصفحة مع زر العودة للداشبورد أو الكورس */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border">
           <div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              <Link href="/dashboard" className="hover:underline">الرئيسية</Link>
+            {/* <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <Link href="/dashboard" className="hover:underline">     
+               {locale === 'ar' ? "لوحة التحكم" : "Dashboard"}
+              </Link>
               <span>/</span>
-              <span>مرفقات الدورة</span>
-            </div>
-            <h1 className="text-2xl font-bold text-slate-900">مرفقات وكتب دبلومة: {courseTitle}</h1>
+              <span>
+ {locale === 'ar' ? "مرفقات وكتب دبلومة" : "Attachments"}
+              </span>
+            </div> */}
+            <h1 className="text-2xl font-bold text-slate-900">   {locale === 'ar' ? "مرفقات وكتب دبلومة" : "Attachments and Books of Diploma"} : </h1>
+             <h1 className="text-2xl font-bold text-slate-900">  {courseTitle} </h1>
           </div>
          <Link 
   href="/dashboard" 
   className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 transition-colors"
 >
   <ArrowRight className="w-4 h-4" />
-  العودة للوحة التحكم
+
+
+   {locale === 'ar' ? "العودة للوحة التحكم" : "Back to Dashboard"}
 </Link>
         </div>
 

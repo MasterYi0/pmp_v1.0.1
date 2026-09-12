@@ -38,7 +38,7 @@ export async function ServerDashboardContent({ userId }: DashboardViewProps) {
         </Card>
 
         <Card className="bg-blue-500/5 border-blue-500/20 cursor-pointer hover:shadow-md transition-all">
-          <Link href="/dashboard/analytics">
+          {/* <Link href="/dashboard/analytics"> */}
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">{locale === 'ar' ? "تحليلات الاختبارات" : "Quiz Analytics"} </CardTitle>
             </CardHeader>
@@ -52,7 +52,7 @@ export async function ServerDashboardContent({ userId }: DashboardViewProps) {
                 </div>
               </div>
             </CardContent>
-          </Link>
+          {/* </Link> */}
         </Card>
       </div>
 
@@ -76,7 +76,7 @@ export async function ServerDashboardContent({ userId }: DashboardViewProps) {
                 progressQuiz={item.progressQuiz} 
               //  locale={locale} 
               isEnrolled={true}
-              hasCertificate={item.is_complete}
+              // hasCertificate={item.is_complete}
               />
             ))}
           </div>
@@ -86,7 +86,7 @@ export async function ServerDashboardContent({ userId }: DashboardViewProps) {
       {/* 3. قسم المزيد (الكورسات غير المشترك فيها) */}
       <div className="space-y-4 pt-6 border-t">
         <h2 className="text-xl font-bold">{locale === 'ar' ? "استكشف دورات جديدة" : "Explore New Courses"}</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {moreCourses.map((course: any) => (
             <CourseDashboardCard 
               key={course.slug} 
