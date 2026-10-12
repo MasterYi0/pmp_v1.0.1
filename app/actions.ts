@@ -9,7 +9,7 @@ export async function getCourses(): Promise<Course[]> {
   const { data: coursesData, error } = await supabase
     .from('courses')
     .select('*')
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true }).limit(3);
 
   if (error) {
     console.error('Error fetching courses:', error);

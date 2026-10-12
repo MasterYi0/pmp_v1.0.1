@@ -249,7 +249,7 @@ const hasCertificate = progressVideo === 100 && progressQuiz === 100;
                   <span>{locale === 'ar' ? "تقدم الفيديوهات" : "Videos Progress"}</span>
                   <span>{progressVideo}%</span>
                 </div>
-                <Progress value={progressVideo} className="h-2" />
+                <Progress value={progressVideo} className="h-2 " />
               </div>
 
               <div className="space-y-1">
@@ -257,9 +257,36 @@ const hasCertificate = progressVideo === 100 && progressQuiz === 100;
                   <span>{locale === 'ar' ? "تقدم الاختبارات" : "Quizzes Progress"}</span>
                   <span>{progressQuiz}%</span>
                 </div>
-                <Progress value={progressQuiz} className="h-2 bg-slate-100" />
+                <Progress value={progressQuiz} className="h-2 " />
               </div>
             </div>
+{/* <div className="mt-4 space-y-3 text-sm">
+ 
+  <div className="space-y-1">
+    <div className="flex justify-between text-xs text-muted-foreground">
+      <span>{locale === 'ar' ? "تقدم الفيديوهات" : "Videos Progress"}</span>
+      <span>{progressVideo}%</span>
+    </div>
+    <Progress 
+      value={progressVideo} 
+      className="h-2 bg-secondary/60 dark:bg-secondary/40 [&>div]:bg-primary" 
+    />
+  </div>
+
+
+  <div className="space-y-1">
+    <div className="flex justify-between text-xs text-muted-foreground">
+      <span>{locale === 'ar' ? "تقدم الاختبارات" : "Quizzes Progress"}</span>
+      <span>{progressQuiz}%</span>
+    </div>
+    <Progress 
+      value={progressQuiz} 
+      className="h-2 bg-secondary/60 dark:bg-secondary/40 [&>div]:bg-primary" 
+    />
+  </div>
+</div> */}
+
+
           </div>
 
           {/* الأزرار السفلية المقسمة */}

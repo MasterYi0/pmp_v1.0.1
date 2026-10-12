@@ -1046,357 +1046,7 @@ interface VideoPlayerClientProps {
 //   )
 // }
 
-
-export function VideoPlayerClient({
-  initialLesson,
-  sections,
-  initialProgress,
-  userId,
-}: VideoPlayerClientProps) {
-  const [currentLesson, setCurrentLesson] = useState(initialLesson)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-
-  const [progressMap, setProgressMap] = useState<Map<string, boolean>>(
-    new Map(initialProgress.map((p) => [p.lesson_id, p.is_complete]))
-  )
-
-  const locale = useLocale() as 'ar' | 'en'
-
-  const [expandedSections, setExpandedSections] = useState<
-    Record<string, boolean>
-  >({
-    [initialLesson?.section_id]: true,
-  })
-
-  const [isPlaying, setIsPlaying] = useState(false)
-
-  const isCurrentCompleted = currentLesson
-    ? progressMap.get(currentLesson.id) || false
-    : false
-
-  const handleToggleComplete = async (checked: boolean) => {
-    if (!currentLesson) return
-
-    try {
-      await toggleLessonCompletion(userId, currentLesson.id, checked)
-      setProgressMap(
-        (prev) => new Map(prev).set(currentLesson.id, checked)
-      )
-    } catch (error) {
-      console.error('Failed to update progress', error)
-    }
-  }
-
-  useEffect(() => {
-    setIsPlaying(false)
-  }, [currentLesson?.id])
-
-  const toggleSection = (sectionId: string) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [sectionId]: !prev[sectionId],
-    }))
-  }
-
-  const selectLesson = (lesson: any) => {
-    setCurrentLesson(lesson)
-
-    toggleLessonCompletion(
-      userId,
-      lesson.id,
-      progressMap.get(lesson.id) || false
-    )
-
-    // قفل الـ sidebar تلقائياً على الموبايل بعد اختيار الدرس
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      setSidebarOpen(false)
-    }
-  }
-
-  return (
-    <div className="relative flex h-[100dvh] w-full overflow-hidden bg-slate-50 text-slate-800 font-sans" dir={locale === 'ar' ? 'rtl' : 'ltr'}>
-
-      {/* =========================================================
-          MOBILE SIDEBAR OVERLAY
-      ========================================================= */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/30 backdrop-blur-xs md:hidden transition-opacity"
-          onClick={() => setSidebarOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* =========================================================
-          1. SIDEBAR
-      ========================================================= */}
-      <aside
-        className={`
-          fixed inset-y-0 start-0 z-40
-          w-[85vw] max-w-[320px] sm:w-80 lg:w-96
-          bg-white/98 backdrop-blur-xl
-          border-e border-slate-200/80
-          flex flex-col shadow-xl
-          transition-transform duration-300 ease-in-out
-          md:relative md:translate-x-0
-          ${sidebarOpen ? 'translate-x-0' : locale === 'ar' ? 'translate-x-full md:-translate-x-full' : '-translate-x-full md:-translate-x-full'}
-          ${!sidebarOpen && 'md:hidden'}
-        `}
-      >
-        {/* Sidebar Header */}
-        <div className="min-h-16 px-4 py-3.5 border-b border-slate-200/80 flex items-center justify-between bg-white shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100 shrink-0 shadow-inner">
-              <BookOpen className="w-4 h-4" />
-            </div>
-            <span className="font-semibold text-xs sm:text-sm truncate text-slate-700">
-              {locale === 'ar' ? sections[0]?.title_ar : sections[0]?.title_en}
-            </span>
-          </div>
-
-          {/* Close button - Mobile only */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarOpen(false)}
-            className="md:hidden shrink-0 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg h-9 w-9"
-          >
-            <PanelLeftClose className="w-5 h-5" />
-          </Button>
-        </div>
-
-        {/* Sidebar Content (Sections & Lessons) */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 custom-scrollbar min-h-0">
-          {sections.map((section) => {
-            const isExpanded = expandedSections[section.id]
-
-            return (
-              <div
-                key={section.id}
-                className="border border-slate-200/80 rounded-xl overflow-hidden bg-slate-50/50 transition-all hover:border-slate-300"
-              >
-                {/* Section Button */}
-                <button
-                  onClick={() => toggleSection(section.id)}
-                  className="w-full p-3 bg-slate-100/70 hover:bg-slate-100 flex justify-between items-center text-start font-medium text-xs sm:text-sm text-slate-700 transition-colors gap-2"
-                >
-                  <span className="truncate pe-1 min-w-0 font-medium">
-                    {locale === 'ar' ? section.title_ar : section.title_en}
-                  </span>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[10px] sm:text-[11px] text-slate-600 bg-white px-2 py-0.5 rounded-full whitespace-nowrap border border-slate-200 shadow-xs">
-                      {section.course_lessons?.length || 0} {locale === 'ar' ? 'دروس' : 'lessons'}
-                    </span>
-                    {isExpanded ? (
-                      <ChevronUp className="w-4 h-4 text-slate-500 shrink-0" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
-                    )}
-                  </div>
-                </button>
-
-                {/* Lessons List */}
-                {isExpanded && (
-                  <div className="divide-y divide-slate-200/50 bg-white/50">
-                    {section.course_lessons?.map((lesson: any) => {
-                      const isCompleted = progressMap.get(lesson.id) || false
-                      const isSelected = currentLesson?.id === lesson.id
-
-                      return (
-                        <div
-                          key={lesson.id}
-                          onClick={() => selectLesson(lesson)}
-                          className={`
-                            p-3 flex items-center justify-between cursor-pointer transition-all text-xs sm:text-sm gap-3 min-w-0
-                            ${isSelected
-                              ? 'bg-indigo-50 text-indigo-700 font-medium border-s-4 border-indigo-600 shadow-xs'
-                              : 'hover:bg-slate-100/60 text-slate-600 hover:text-slate-900'
-                            }
-                          `}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <span
-                              className={`
-                                w-2.5 h-2.5 rounded-full shrink-0 transition-all
-                                ${isCompleted
-                                  ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
-                                  : 'bg-slate-300'
-                                }
-                              `}
-                            />
-                            <span className="truncate">{locale === 'ar' ? lesson.title_ar : lesson.title_en}</span>
-                          </div>
-
-                          <span className="text-[10px] sm:text-[11px] text-slate-400 shrink-0 font-mono">
-                            {lesson.duration}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </aside>
-
-      {/* =========================================================
-          2. MAIN AREA
-      ========================================================= */}
-      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-slate-50">
-
-{/* =====================================================
-    APP BAR (Navbar)
-==================================================== */}
-<header className="min-h-16 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 z-10 shrink-0 shadow-xs">
-  {/* Left Side: Toggle Sidebar & Lesson Title */}
-  <div className="flex items-center gap-3 min-w-0 flex-1">
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => setSidebarOpen(!sidebarOpen)}
-      className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 shrink-0 h-9 w-9 rounded-lg"
-    >
-      {sidebarOpen ? (
-        <PanelLeftClose className="w-5 h-5" />
-      ) : (
-        <PanelLeftOpen className="w-5 h-5" />
-      )}
-    </Button>
-
-    <h1 className="font-semibold text-xs sm:text-sm md:text-base truncate text-slate-800 min-w-0">
-      {currentLesson
-        ? locale === 'ar' ? currentLesson.title_ar : currentLesson.title_en
-        : locale === 'ar' ? 'اختر درساً' : 'Select a lesson'}
-    </h1>
-  </div>
-
-  {/* Right Side: Dashboard Button & Completion Checkbox */}
-  <div className="flex items-center gap-2 sm:gap-3 shrink-0">
- 
-
-    {/* Completion Checkbox Button */}
-    <div className="flex items-center bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-xs">
-      <Checkbox
-        id="completed"
-        checked={isCurrentCompleted}
-        onCheckedChange={(val) => handleToggleComplete(val === true)}
-        className="border-slate-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 rounded-sm"
-      />
-      <label
-        htmlFor="completed"
-        className="ms-2 text-xs sm:text-sm font-medium cursor-pointer text-slate-700 select-none whitespace-nowrap"
-      >
-        {locale === 'ar' ? 'مكتمل' : 'Completed'}
-      </label>
-    </div>
- 
-    {/* زر العودة للداشبورد */}
-    <a
-      href="/dashboard" // استبدل المسار بالمسار الصحيح لديك (أو استخدم Link من Next.js إذا كنت تستخدمه)
-      className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors shadow-xs"
-    >
-      <span className="hidden sm:inline">
-        {locale === 'ar' ? 'الرئيسية' : 'Dashboard'}
-      </span>
-    </a>
-  </div>
-</header>
-
-        {/* =====================================================
-            VIDEO AREA (Main Content)
-        ==================================================== */}
-        <main className="flex-1 bg-slate-50 flex flex-col items-center justify-start p-3 sm:p-5 md:p-8 overflow-y-auto overflow-x-hidden min-h-0 custom-scrollbar">
-          {currentLesson ? (
-            <div className="w-full max-w-5xl flex flex-col gap-4">
-              
-              {/* =================================================
-                  VIDEO PLAYER CONTAINER
-              ================================================= */}
-              <div className="w-full aspect-video bg-slate-900 border border-slate-200 rounded-2xl overflow-hidden shadow-xl relative flex items-center justify-center text-white ring-1 ring-slate-900/5">
-                {isPlaying ? (
-                  <iframe
-                    src={getYouTubeEmbedUrl(
-                      currentLesson.videolink || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
-                    )}
-                    title={locale === 'ar' ? currentLesson.title_ar : currentLesson.title_en}
-                    className="w-full h-full border-0 absolute inset-0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-center p-6 relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950">
-                    {/* Glowing Effect Background */}
-                    <div className="absolute w-52 h-52 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-
-                    {/* Big Play Button */}
-                    <div
-                      className="w-16 h-16 sm:w-20 sm:h-20 bg-white/10 border border-white/20 rounded-2xl flex items-center justify-center cursor-pointer hover:bg-white/20 hover:scale-105 transition-all duration-300 shadow-xl shadow-black/20 group z-10 mb-4 backdrop-blur-sm"
-                      onClick={() => setIsPlaying(true)}
-                    >
-                      <Play className="w-8 h-8 text-white ms-1 group-hover:scale-110 transition-transform" />
-                    </div>
-
-                    <div className="space-y-1.5 max-w-lg mx-auto z-10">
-                      <span className="text-[10px] sm:text-xs uppercase tracking-widest text-indigo-300 font-semibold">
-                        {locale === 'ar' ? 'جاهز للمشاهدة' : 'Ready to watch'}
-                      </span>
-                      <h2 className="text-sm sm:text-base md:text-xl font-bold text-white line-clamp-2">
-                        {locale === 'ar' ? currentLesson.title_ar : currentLesson.title_en}
-                      </h2>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* =================================================
-                  LESSON INFO BAR
-              ================================================= */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white border border-slate-200/80 px-4 sm:px-6 py-4 rounded-xl gap-4 mb-4 shadow-xs">
-                
-                {/* Lesson Details */}
-                <div className="space-y-1.5 min-w-0 w-full sm:w-auto">
-                  <h3 className="text-sm sm:text-base font-semibold text-slate-800 truncate">
-                    {locale === 'ar' ? currentLesson.title_ar : currentLesson.title_en}
-                  </h3>
-
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                    <span className="flex items-center gap-1 font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-700 border border-slate-200 whitespace-nowrap">
-                      <Clock className="w-3.5 h-3.5 text-indigo-600" />
-                      {currentLesson.duration}
-                    </span>
-
-                    <span className="flex items-center gap-1 whitespace-nowrap text-slate-500">
-                      <Film className="w-3.5 h-3.5 text-indigo-600" />
-                      {locale === 'ar' ? 'محتوى فيديو عالي الجودة' : 'HD Video Content'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Play Button Action */}
-                {!isPlaying && (
-                  <Button
-                    onClick={() => setIsPlaying(true)}
-                    className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-medium px-6 py-2.5 rounded-xl shadow-md shadow-indigo-600/10 transition-all shrink-0 cursor-pointer"
-                  >
-                    {locale === 'ar' ? 'تشغيل الدرس الآن' : 'Play Lesson'}
-                  </Button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="text-slate-500 text-sm sm:text-base md:text-lg flex flex-col items-center gap-3 mt-20 text-center px-4">
-              <Sparkles className="w-10 h-10 text-indigo-500/60" />
-              <span>{locale === 'ar' ? 'لا يوجد محتوى لعرضه حالياً' : 'No content available'}</span>
-            </div>
-          )}
-        </main>
-      </div>
-    </div>
-  )
-}
+      //////////////////// صخقنهىل////////////////////////          
 
 
 
@@ -2113,6 +1763,357 @@ export function VideoPlayerClient({
 
 
 
+
+//////////////////////////////////////////////////////////////////////////////////
+export function VideoPlayerClient({
+  initialLesson,
+  sections,
+  initialProgress,
+  userId,
+}: VideoPlayerClientProps) {
+  const [currentLesson, setCurrentLesson] = useState(initialLesson)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  const [progressMap, setProgressMap] = useState<Map<string, boolean>>(
+    new Map(initialProgress.map((p) => [p.lesson_id, p.is_complete]))
+  )
+
+  const locale = useLocale() as 'ar' | 'en'
+
+  const [expandedSections, setExpandedSections] = useState<
+    Record<string, boolean>
+  >({
+    [initialLesson?.section_id]: true,
+  })
+
+  const [isPlaying, setIsPlaying] = useState(false)
+
+  const isCurrentCompleted = currentLesson
+    ? progressMap.get(currentLesson.id) || false
+    : false
+
+  const handleToggleComplete = async (checked: boolean) => {
+    if (!currentLesson) return
+
+    try {
+      await toggleLessonCompletion(userId, currentLesson.id, checked)
+      setProgressMap(
+        (prev) => new Map(prev).set(currentLesson.id, checked)
+      )
+    } catch (error) {
+      console.error('Failed to update progress', error)
+    }
+  }
+
+  useEffect(() => {
+    setIsPlaying(false)
+  }, [currentLesson?.id])
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [sectionId]: !prev[sectionId],
+    }))
+  }
+
+  const selectLesson = (lesson: any) => {
+    setCurrentLesson(lesson)
+
+    toggleLessonCompletion(
+      userId,
+      lesson.id,
+      progressMap.get(lesson.id) || false
+    )
+
+    // قفل الـ sidebar تلقائياً على الموبايل بعد اختيار الدرس
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setSidebarOpen(false)
+    }
+  }
+
+  return (
+    <div className="relative flex h-[100dvh] w-full overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans" dir={locale === 'ar' ? 'rtl' : 'ltr'}>
+
+      {/* =========================================================
+          MOBILE SIDEBAR OVERLAY
+      ========================================================= */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/30 backdrop-blur-xs md:hidden transition-opacity"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* =========================================================
+          1. SIDEBAR
+      ========================================================= */}
+      <aside
+        className={`
+          fixed inset-y-0 start-0 z-40
+          w-[85vw] max-w-[320px] sm:w-80 lg:w-96
+          bg-white/98 dark:bg-slate-900/98 backdrop-blur-xl
+          border-e border-slate-200/80 dark:border-slate-800
+          flex flex-col shadow-xl
+          transition-transform duration-300 ease-in-out
+          md:relative md:translate-x-0
+          ${sidebarOpen ? 'translate-x-0' : locale === 'ar' ? 'translate-x-full md:-translate-x-full' : '-translate-x-full md:-translate-x-full'}
+          ${!sidebarOpen && 'md:hidden'}
+        `}
+      >
+        {/* Sidebar Header */}
+        <div className="min-h-16 px-4 py-3.5 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900 shrink-0 shadow-inner">
+              <BookOpen className="w-4 h-4" />
+            </div>
+            <span className="font-semibold text-xs sm:text-sm truncate text-slate-700 dark:text-slate-200">
+              {locale === 'ar' ? sections[0]?.title_ar : sections[0]?.title_en}
+            </span>
+          </div>
+
+          {/* Close button - Mobile only */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden shrink-0 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg h-9 w-9"
+          >
+            <PanelLeftClose className="w-5 h-5" />
+          </Button>
+        </div>
+
+        {/* Sidebar Content (Sections & Lessons) */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 custom-scrollbar min-h-0">
+          {sections.map((section) => {
+            const isExpanded = expandedSections[section.id]
+
+            return (
+              <div
+                key={section.id}
+                className="border border-slate-200/80 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/50 transition-all hover:border-slate-300 dark:hover:border-slate-700"
+              >
+                {/* Section Button */}
+                <button
+                  onClick={() => toggleSection(section.id)}
+                  className="w-full p-3 bg-slate-100/70 dark:bg-slate-800/70 hover:bg-slate-100 dark:hover:bg-slate-800 flex justify-between items-center text-start font-medium text-xs sm:text-sm text-slate-700 dark:text-slate-200 transition-colors gap-2"
+                >
+                  <span className="truncate pe-1 min-w-0 font-medium">
+                    {locale === 'ar' ? section.title_ar : section.title_en}
+                  </span>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] sm:text-[11px] text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 px-2 py-0.5 rounded-full whitespace-nowrap border border-slate-200 dark:border-slate-700 shadow-xs">
+                      {section.course_lessons?.length || 0} {locale === 'ar' ? 'دروس' : 'lessons'}
+                    </span>
+                    {isExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Lessons List */}
+                {isExpanded && (
+                  <div className="divide-y divide-slate-200/50 dark:divide-slate-800 bg-white/50 dark:bg-slate-900/50">
+                    {section.course_lessons?.map((lesson: any) => {
+                      const isCompleted = progressMap.get(lesson.id) || false
+                      const isSelected = currentLesson?.id === lesson.id
+
+                      return (
+                        <div
+                          key={lesson.id}
+                          onClick={() => selectLesson(lesson)}
+                          className={`
+                            p-3 flex items-center justify-between cursor-pointer transition-all text-xs sm:text-sm gap-3 min-w-0
+                            ${isSelected
+                              ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-medium border-s-4 border-indigo-600 dark:border-indigo-500 shadow-xs'
+                              : 'hover:bg-slate-100/60 dark:hover:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                            }
+                          `}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span
+                              className={`
+                                w-2.5 h-2.5 rounded-full shrink-0 transition-all
+                                ${isCompleted
+                                  ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
+                                  : 'bg-slate-300 dark:bg-slate-700'
+                                }
+                              `}
+                            />
+                            <span className="truncate">{locale === 'ar' ? lesson.title_ar : lesson.title_en}</span>
+                          </div>
+
+                          <span className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 shrink-0 font-mono">
+                            {lesson.duration}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </aside>
+
+      {/* =========================================================
+          2. MAIN AREA
+      ========================================================= */}
+      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-slate-50 dark:bg-slate-950">
+
+        {/* =====================================================
+            APP BAR (Navbar)
+        ==================================================== */}
+        <header className="min-h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 z-10 shrink-0 shadow-xs">
+          {/* Left Side: Toggle Sidebar & Lesson Title */}
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0 h-9 w-9 rounded-lg"
+            >
+              {sidebarOpen ? (
+                <PanelLeftClose className="w-5 h-5" />
+              ) : (
+                <PanelLeftOpen className="w-5 h-5" />
+              )}
+            </Button>
+
+            <h1 className="font-semibold text-xs sm:text-sm md:text-base truncate text-slate-800 dark:text-slate-100 min-w-0">
+              {currentLesson
+                ? locale === 'ar' ? currentLesson.title_ar : currentLesson.title_en
+                : locale === 'ar' ? 'اختر درساً' : 'Select a lesson'}
+            </h1>
+          </div>
+
+          {/* Right Side: Dashboard Button & Completion Checkbox */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Completion Checkbox Button */}
+            <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-lg shadow-xs">
+              <Checkbox
+                id="completed"
+                checked={isCurrentCompleted}
+                onCheckedChange={(val) => handleToggleComplete(val === true)}
+                className="border-slate-300 dark:border-slate-700 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 rounded-sm"
+              />
+              <label
+                htmlFor="completed"
+                className="ms-2 text-xs sm:text-sm font-medium cursor-pointer text-slate-700 dark:text-slate-300 select-none whitespace-nowrap"
+              >
+                {locale === 'ar' ? 'مكتمل' : 'Completed'}
+              </label>
+            </div>
+         
+            {/* زر العودة للداشبورد */}
+            <a
+              href="/dashboard"
+              className="inline-flex items-center gap-1.5 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors shadow-xs"
+            >
+              <span className="hidden sm:inline">
+                {locale === 'ar' ? 'الرئيسية' : 'Dashboard'}
+              </span>
+            </a>
+          </div>
+        </header>
+
+        {/* =====================================================
+            VIDEO AREA (Main Content)
+        ===================================================== */}
+        <main className="flex-1 bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-start p-3 sm:p-5 md:p-8 overflow-y-auto overflow-x-hidden min-h-0 custom-scrollbar">
+          {currentLesson ? (
+            <div className="w-full max-w-5xl flex flex-col gap-4">
+              
+              {/* =================================================
+                  VIDEO PLAYER CONTAINER
+              ================================================ */}
+              <div className="w-full aspect-video bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xl relative flex items-center justify-center text-white ring-1 ring-slate-900/5">
+                {isPlaying ? (
+                  <iframe
+                    src={getYouTubeEmbedUrl(
+                      currentLesson.videolink || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+                    )}
+                    title={locale === 'ar' ? currentLesson.title_ar : currentLesson.title_en}
+                    className="w-full h-full border-0 absolute inset-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-center p-6 relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950">
+                    {/* Glowing Effect Background */}
+                    <div className="absolute w-52 h-52 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                    {/* Big Play Button */}
+                    <div
+                      className="w-16 h-16 sm:w-20 sm:h-20 bg-white/10 border border-white/20 rounded-2xl flex items-center justify-center cursor-pointer hover:bg-white/20 hover:scale-105 transition-all duration-300 shadow-xl shadow-black/20 group z-10 mb-4 backdrop-blur-sm"
+                      onClick={() => setIsPlaying(true)}
+                    >
+                      <Play className="w-8 h-8 text-white ms-1 group-hover:scale-110 transition-transform" />
+                    </div>
+
+                    <div className="space-y-1.5 max-w-lg mx-auto z-10">
+                      <span className="text-[10px] sm:text-xs uppercase tracking-widest text-indigo-300 font-semibold">
+                        {locale === 'ar' ? 'جاهز للمشاهدة' : 'Ready to watch'}
+                      </span>
+                      <h2 className="text-sm sm:text-base md:text-xl font-bold text-white line-clamp-2">
+                        {locale === 'ar' ? currentLesson.title_ar : currentLesson.title_en}
+                      </h2>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* =================================================
+                  LESSON INFO BAR
+              ================================================ */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 px-4 sm:px-6 py-4 rounded-xl gap-4 mb-4 shadow-xs">
+                
+                {/* Lesson Details */}
+                <div className="space-y-1.5 min-w-0 w-full sm:w-auto">
+                  <h3 className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-100 truncate">
+                    {locale === 'ar' ? currentLesson.title_ar : currentLesson.title_en}
+                  </h3>
+
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                    <span className="flex items-center gap-1 font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                      <Clock className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      {currentLesson.duration}
+                    </span>
+
+                    <span className="flex items-center gap-1 whitespace-nowrap text-slate-500 dark:text-slate-400">
+                      <Film className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      {locale === 'ar' ? 'محتوى فيديو عالي الجودة' : 'HD Video Content'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Play Button Action */}
+                {!isPlaying && (
+                  <Button
+                    onClick={() => setIsPlaying(true)}
+                    className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white text-xs sm:text-sm font-medium px-6 py-2.5 rounded-xl shadow-md shadow-indigo-600/10 transition-all shrink-0 cursor-pointer"
+                  >
+                    {locale === 'ar' ? 'تشغيل الدرس الآن' : 'Play Lesson'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-slate-500 dark:text-slate-400 text-sm sm:text-base md:text-lg flex flex-col items-center gap-3 mt-20 text-center px-4">
+              <Sparkles className="w-10 h-10 text-indigo-500/60" />
+              <span>{locale === 'ar' ? 'لا يوجد محتوى لعرضه حالياً' : 'No content available'}</span>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  )
+}
+
 function getYouTubeEmbedUrl(url: string) {
   if (!url) return ''
   
@@ -2129,3 +2130,371 @@ function getYouTubeEmbedUrl(url: string) {
 }
 
 
+
+
+// export function VideoPlayerClient({
+//   initialLesson,
+//   sections,
+//   initialProgress,
+//   userId,
+// }: VideoPlayerClientProps) {
+//   const [currentLesson, setCurrentLesson] = useState(initialLesson)
+//   const [sidebarOpen, setSidebarOpen] = useState(true)
+
+//   const [progressMap, setProgressMap] = useState<Map<string, boolean>>(
+//     new Map(initialProgress.map((p) => [p.lesson_id, p.is_complete]))
+//   )
+
+//   const locale = useLocale() as 'ar' | 'en'
+
+//   const [expandedSections, setExpandedSections] = useState<
+//     Record<string, boolean>
+//   >({
+//     [initialLesson?.section_id]: true,
+//   })
+
+//   const [isPlaying, setIsPlaying] = useState(false)
+
+//   const isCurrentCompleted = currentLesson
+//     ? progressMap.get(currentLesson.id) || false
+//     : false
+
+//   const handleToggleComplete = async (checked: boolean) => {
+//     if (!currentLesson) return
+
+//     try {
+//       await toggleLessonCompletion(userId, currentLesson.id, checked)
+//       setProgressMap(
+//         (prev) => new Map(prev).set(currentLesson.id, checked)
+//       )
+//     } catch (error) {
+//       console.error('Failed to update progress', error)
+//     }
+//   }
+
+//   useEffect(() => {
+//     setIsPlaying(false)
+//   }, [currentLesson?.id])
+
+//   const toggleSection = (sectionId: string) => {
+//     setExpandedSections((prev) => ({
+//       ...prev,
+//       [sectionId]: !prev[sectionId],
+//     }))
+//   }
+
+//   const selectLesson = (lesson: any) => {
+//     setCurrentLesson(lesson)
+
+//     toggleLessonCompletion(
+//       userId,
+//       lesson.id,
+//       progressMap.get(lesson.id) || false
+//     )
+
+//     // قفل الـ sidebar تلقائياً على الموبايل بعد اختيار الدرس
+//     if (typeof window !== 'undefined' && window.innerWidth < 768) {
+//       setSidebarOpen(false)
+//     }
+//   }
+
+//   return (
+//     <div className="relative flex h-[100dvh] w-full overflow-hidden bg-slate-50 text-slate-800 font-sans" dir={locale === 'ar' ? 'rtl' : 'ltr'}>
+
+//       {/* =========================================================
+//           MOBILE SIDEBAR OVERLAY
+//       ========================================================= */}
+//       {sidebarOpen && (
+//         <div
+//           className="fixed inset-0 z-30 bg-black/30 backdrop-blur-xs md:hidden transition-opacity"
+//           onClick={() => setSidebarOpen(false)}
+//           aria-hidden="true"
+//         />
+//       )}
+
+//       {/* =========================================================
+//           1. SIDEBAR
+//       ========================================================= */}
+//       <aside
+//         className={`
+//           fixed inset-y-0 start-0 z-40
+//           w-[85vw] max-w-[320px] sm:w-80 lg:w-96
+//           bg-white/98 backdrop-blur-xl
+//           border-e border-slate-200/80
+//           flex flex-col shadow-xl
+//           transition-transform duration-300 ease-in-out
+//           md:relative md:translate-x-0
+//           ${sidebarOpen ? 'translate-x-0' : locale === 'ar' ? 'translate-x-full md:-translate-x-full' : '-translate-x-full md:-translate-x-full'}
+//           ${!sidebarOpen && 'md:hidden'}
+//         `}
+//       >
+//         {/* Sidebar Header */}
+//         <div className="min-h-16 px-4 py-3.5 border-b border-slate-200/80 flex items-center justify-between bg-white shrink-0">
+//           <div className="flex items-center gap-3 min-w-0">
+//             <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100 shrink-0 shadow-inner">
+//               <BookOpen className="w-4 h-4" />
+//             </div>
+//             <span className="font-semibold text-xs sm:text-sm truncate text-slate-700">
+//               {locale === 'ar' ? sections[0]?.title_ar : sections[0]?.title_en}
+//             </span>
+//           </div>
+
+//           {/* Close button - Mobile only */}
+//           <Button
+//             variant="ghost"
+//             size="icon"
+//             onClick={() => setSidebarOpen(false)}
+//             className="md:hidden shrink-0 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg h-9 w-9"
+//           >
+//             <PanelLeftClose className="w-5 h-5" />
+//           </Button>
+//         </div>
+
+//         {/* Sidebar Content (Sections & Lessons) */}
+//         <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 custom-scrollbar min-h-0">
+//           {sections.map((section) => {
+//             const isExpanded = expandedSections[section.id]
+
+//             return (
+//               <div
+//                 key={section.id}
+//                 className="border border-slate-200/80 rounded-xl overflow-hidden bg-slate-50/50 transition-all hover:border-slate-300"
+//               >
+//                 {/* Section Button */}
+//                 <button
+//                   onClick={() => toggleSection(section.id)}
+//                   className="w-full p-3 bg-slate-100/70 hover:bg-slate-100 flex justify-between items-center text-start font-medium text-xs sm:text-sm text-slate-700 transition-colors gap-2"
+//                 >
+//                   <span className="truncate pe-1 min-w-0 font-medium">
+//                     {locale === 'ar' ? section.title_ar : section.title_en}
+//                   </span>
+
+//                   <div className="flex items-center gap-2 shrink-0">
+//                     <span className="text-[10px] sm:text-[11px] text-slate-600 bg-white px-2 py-0.5 rounded-full whitespace-nowrap border border-slate-200 shadow-xs">
+//                       {section.course_lessons?.length || 0} {locale === 'ar' ? 'دروس' : 'lessons'}
+//                     </span>
+//                     {isExpanded ? (
+//                       <ChevronUp className="w-4 h-4 text-slate-500 shrink-0" />
+//                     ) : (
+//                       <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
+//                     )}
+//                   </div>
+//                 </button>
+
+//                 {/* Lessons List */}
+//                 {isExpanded && (
+//                   <div className="divide-y divide-slate-200/50 bg-white/50">
+//                     {section.course_lessons?.map((lesson: any) => {
+//                       const isCompleted = progressMap.get(lesson.id) || false
+//                       const isSelected = currentLesson?.id === lesson.id
+
+//                       return (
+//                         <div
+//                           key={lesson.id}
+//                           onClick={() => selectLesson(lesson)}
+//                           className={`
+//                             p-3 flex items-center justify-between cursor-pointer transition-all text-xs sm:text-sm gap-3 min-w-0
+//                             ${isSelected
+//                               ? 'bg-indigo-50 text-indigo-700 font-medium border-s-4 border-indigo-600 shadow-xs'
+//                               : 'hover:bg-slate-100/60 text-slate-600 hover:text-slate-900'
+//                             }
+//                           `}
+//                         >
+//                           <div className="flex items-center gap-2.5 min-w-0">
+//                             <span
+//                               className={`
+//                                 w-2.5 h-2.5 rounded-full shrink-0 transition-all
+//                                 ${isCompleted
+//                                   ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
+//                                   : 'bg-slate-300'
+//                                 }
+//                               `}
+//                             />
+//                             <span className="truncate">{locale === 'ar' ? lesson.title_ar : lesson.title_en}</span>
+//                           </div>
+
+//                           <span className="text-[10px] sm:text-[11px] text-slate-400 shrink-0 font-mono">
+//                             {lesson.duration}
+//                           </span>
+//                         </div>
+//                       )
+//                     })}
+//                   </div>
+//                 )}
+//               </div>
+//             )
+//           })}
+//         </div>
+//       </aside>
+
+//       {/* =========================================================
+//           2. MAIN AREA
+//       ========================================================= */}
+//       <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-slate-50">
+
+// {/* =====================================================
+//     APP BAR (Navbar)
+// ==================================================== */}
+// <header className="min-h-16 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 z-10 shrink-0 shadow-xs">
+//   {/* Left Side: Toggle Sidebar & Lesson Title */}
+//   <div className="flex items-center gap-3 min-w-0 flex-1">
+//     <Button
+//       variant="ghost"
+//       size="icon"
+//       onClick={() => setSidebarOpen(!sidebarOpen)}
+//       className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 shrink-0 h-9 w-9 rounded-lg"
+//     >
+//       {sidebarOpen ? (
+//         <PanelLeftClose className="w-5 h-5" />
+//       ) : (
+//         <PanelLeftOpen className="w-5 h-5" />
+//       )}
+//     </Button>
+
+//     <h1 className="font-semibold text-xs sm:text-sm md:text-base truncate text-slate-800 min-w-0">
+//       {currentLesson
+//         ? locale === 'ar' ? currentLesson.title_ar : currentLesson.title_en
+//         : locale === 'ar' ? 'اختر درساً' : 'Select a lesson'}
+//     </h1>
+//   </div>
+
+//   {/* Right Side: Dashboard Button & Completion Checkbox */}
+//   <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+ 
+
+//     {/* Completion Checkbox Button */}
+//     <div className="flex items-center bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-xs">
+//       <Checkbox
+//         id="completed"
+//         checked={isCurrentCompleted}
+//         onCheckedChange={(val) => handleToggleComplete(val === true)}
+//         className="border-slate-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 rounded-sm"
+//       />
+//       <label
+//         htmlFor="completed"
+//         className="ms-2 text-xs sm:text-sm font-medium cursor-pointer text-slate-700 select-none whitespace-nowrap"
+//       >
+//         {locale === 'ar' ? 'مكتمل' : 'Completed'}
+//       </label>
+//     </div>
+ 
+//     {/* زر العودة للداشبورد */}
+//     <a
+//       href="/dashboard" // استبدل المسار بالمسار الصحيح لديك (أو استخدم Link من Next.js إذا كنت تستخدمه)
+//       className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors shadow-xs"
+//     >
+//       <span className="hidden sm:inline">
+//         {locale === 'ar' ? 'الرئيسية' : 'Dashboard'}
+//       </span>
+//     </a>
+//   </div>
+// </header>
+
+//         {/* =====================================================
+//             VIDEO AREA (Main Content)
+//         ==================================================== */}
+//         <main className="flex-1 bg-slate-50 flex flex-col items-center justify-start p-3 sm:p-5 md:p-8 overflow-y-auto overflow-x-hidden min-h-0 custom-scrollbar">
+//           {currentLesson ? (
+//             <div className="w-full max-w-5xl flex flex-col gap-4">
+              
+//               {/* =================================================
+//                   VIDEO PLAYER CONTAINER
+//               ================================================= */}
+//               <div className="w-full aspect-video bg-slate-900 border border-slate-200 rounded-2xl overflow-hidden shadow-xl relative flex items-center justify-center text-white ring-1 ring-slate-900/5">
+//                 {isPlaying ? (
+//                   <iframe
+//                     src={getYouTubeEmbedUrl(
+//                       currentLesson.videolink || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+//                     )}
+//                     title={locale === 'ar' ? currentLesson.title_ar : currentLesson.title_en}
+//                     className="w-full h-full border-0 absolute inset-0"
+//                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+//                     allowFullScreen
+//                   />
+//                 ) : (
+//                   <div className="w-full h-full flex flex-col items-center justify-center text-center p-6 relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950">
+//                     {/* Glowing Effect Background */}
+//                     <div className="absolute w-52 h-52 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+//                     {/* Big Play Button */}
+//                     <div
+//                       className="w-16 h-16 sm:w-20 sm:h-20 bg-white/10 border border-white/20 rounded-2xl flex items-center justify-center cursor-pointer hover:bg-white/20 hover:scale-105 transition-all duration-300 shadow-xl shadow-black/20 group z-10 mb-4 backdrop-blur-sm"
+//                       onClick={() => setIsPlaying(true)}
+//                     >
+//                       <Play className="w-8 h-8 text-white ms-1 group-hover:scale-110 transition-transform" />
+//                     </div>
+
+//                     <div className="space-y-1.5 max-w-lg mx-auto z-10">
+//                       <span className="text-[10px] sm:text-xs uppercase tracking-widest text-indigo-300 font-semibold">
+//                         {locale === 'ar' ? 'جاهز للمشاهدة' : 'Ready to watch'}
+//                       </span>
+//                       <h2 className="text-sm sm:text-base md:text-xl font-bold text-white line-clamp-2">
+//                         {locale === 'ar' ? currentLesson.title_ar : currentLesson.title_en}
+//                       </h2>
+//                     </div>
+//                   </div>
+//                 )}
+//               </div>
+
+//               {/* =================================================
+//                   LESSON INFO BAR
+//               ================================================= */}
+//               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white border border-slate-200/80 px-4 sm:px-6 py-4 rounded-xl gap-4 mb-4 shadow-xs">
+                
+//                 {/* Lesson Details */}
+//                 <div className="space-y-1.5 min-w-0 w-full sm:w-auto">
+//                   <h3 className="text-sm sm:text-base font-semibold text-slate-800 truncate">
+//                     {locale === 'ar' ? currentLesson.title_ar : currentLesson.title_en}
+//                   </h3>
+
+//                   <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+//                     <span className="flex items-center gap-1 font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-700 border border-slate-200 whitespace-nowrap">
+//                       <Clock className="w-3.5 h-3.5 text-indigo-600" />
+//                       {currentLesson.duration}
+//                     </span>
+
+//                     <span className="flex items-center gap-1 whitespace-nowrap text-slate-500">
+//                       <Film className="w-3.5 h-3.5 text-indigo-600" />
+//                       {locale === 'ar' ? 'محتوى فيديو عالي الجودة' : 'HD Video Content'}
+//                     </span>
+//                   </div>
+//                 </div>
+
+//                 {/* Play Button Action */}
+//                 {!isPlaying && (
+//                   <Button
+//                     onClick={() => setIsPlaying(true)}
+//                     className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-medium px-6 py-2.5 rounded-xl shadow-md shadow-indigo-600/10 transition-all shrink-0 cursor-pointer"
+//                   >
+//                     {locale === 'ar' ? 'تشغيل الدرس الآن' : 'Play Lesson'}
+//                   </Button>
+//                 )}
+//               </div>
+//             </div>
+//           ) : (
+//             <div className="text-slate-500 text-sm sm:text-base md:text-lg flex flex-col items-center gap-3 mt-20 text-center px-4">
+//               <Sparkles className="w-10 h-10 text-indigo-500/60" />
+//               <span>{locale === 'ar' ? 'لا يوجد محتوى لعرضه حالياً' : 'No content available'}</span>
+//             </div>
+//           )}
+//         </main>
+//       </div>
+//     </div>
+//   )
+// }
+
+
+// function getYouTubeEmbedUrl(url: string) {
+//   if (!url) return ''
+  
+//   let videoId = ''
+//   if (url.includes('youtu.be/')) {
+//     videoId = url.split('youtu.be/')[1]?.split('?')[0]
+//   } else if (url.includes('watch?v=')) {
+//     videoId = url.split('watch?v=')[1]?.split('&')[0]
+//   } else {
+//     videoId = url 
+//   }
+
+//   return `https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1`
+// }

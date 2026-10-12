@@ -24,3 +24,14 @@ export async function toggleTheme(theme: string) {
     sameSite: 'lax',
   });
 }
+
+export async function setTheme(theme: string) {
+  const cookieStore = await cookies();
+  
+  // حفظ الثيم في الكوكي (مثلاً لمدة سنة)
+  cookieStore.set('theme', theme, {
+    path: '/',
+    maxAge: 31536000, // 365 يوم تقريباً
+    sameSite: 'lax',
+  });
+}

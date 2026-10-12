@@ -16,7 +16,7 @@ export function Footer({ courses }: CoursesSectionProps) {
       <div className="mx-auto grid w-full max-w-295 gap-10 px-5 py-14 md:grid-cols-4">
         <div className="md:col-span-1">
           <div className="flex items-center gap-3">
-            <img src="/banner.png" alt="PM Mindset" width={48} height={48} className="size-12 object-contain" loading="lazy" />
+            <img src="/bannerL.png" alt="PM Mindset" width={48} height={48} className="size-12 object-contain" loading="lazy" />
             <span className="text-lg font-extrabold">PM Mindset</span>
           </div>
           <p className="mt-4 text-sm leading-8 text-white/65">

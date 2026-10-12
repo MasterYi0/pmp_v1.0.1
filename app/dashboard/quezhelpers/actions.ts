@@ -1,4 +1,3 @@
-
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
@@ -16,7 +15,13 @@ export interface LocalizedText {
   en: string
 }
 
-export type QuestionType = 'single' | 'multiple' | 'true_false' | 'dnd'
+/** One image URL per language. Both are always filled when at least one exists. */
+export interface LocalizedImage {
+  ar: string | null
+  en: string | null
+}
+
+export type QuestionType = 'single' | 'multiple' | 'true_false' | 'dnd' | 'grouped'
 
 export interface QuestionOption {
   id: string
@@ -37,13 +42,30 @@ export interface DndOptions {
   explanation?: LocalizedText
 }
 
+/** grouped_choice: a passage + several lists, pick one-or-more answers from each list. */
+export interface GroupedOption {
+  id: string
+  text: LocalizedText
+  is_correct: boolean
+}
+
+export interface GroupedGroup {
+  id: string
+  title: LocalizedText
+  options: GroupedOption[]
+  feedback: LocalizedText
+}
+
 export interface QuestionBankRow {
   id: number
   course_slug: string | null
   section_id: string | null
   type: QuestionType
   question: LocalizedText
-  options: QuestionOption[] | DndOptions
+  options: QuestionOption[] | DndOptions | GroupedGroup[]
+  image_url: LocalizedImage | null
+  /** `questions_bank.order` — the question's number inside its quiz. */
+  order: number | null
 }
 
 export interface QuizRow {
@@ -114,10 +136,13 @@ export interface QuizReportData {
 // Normalization layer
 // -----------------------------------------------------------
 // The seed data in `questions_bank` was generated with:
-//   - type values: 'true_false' | 'single_choice' | 'multiple_choice' | 'drag_and_drop'
+//   - type values: 'true_false' | 'single_choice' | 'multiple_choice' |
+//     'drag_and_drop' | 'grouped_choice'
 //   - option feedback under the key `feedback`, not `explanation`
 //   - drag_and_drop options as a flat array of { left_item, right_match } pairs
 //     (no ids, no many-to-many mapping)
+//   - grouped_choice options as [{ id, title, goptions: [{ id, text, iscorrect }], feedback }]
+//   - image_url as { ar, en } (nullable)
 //
 // Everything downstream (UI + grading) works against the canonical shapes
 // above, so all of that gets normalized once, right after reading from the
@@ -132,23 +157,91 @@ const TYPE_MAP: Record<string, QuestionType> = {
   multiple: 'multiple',
   drag_and_drop: 'dnd',
   dnd: 'dnd',
+  grouped_choice: 'grouped',
+  grouped: 'grouped',
 }
 
 const EMPTY_TEXT: LocalizedText = { ar: '', en: '' }
 
 function safeText(v: any): LocalizedText {
   if (!v) return EMPTY_TEXT
+  if (typeof v === 'string') return { ar: v, en: v }
   return { ar: v.ar ?? '', en: v.en ?? '' }
 }
 
+/** jsonb normally arrives parsed, but tolerate JSON stored as a string. */
+function parseMaybeJson(v: any): any {
+  if (typeof v === 'string') {
+    const s = v.trim()
+    if (s.startsWith('{') || s.startsWith('[')) {
+      try {
+        return JSON.parse(s)
+      } catch {
+        return v
+      }
+    }
+  }
+  return v
+}
+
+function toNum(v: any): number | null {
+  if (v === null || v === undefined || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+function cleanUrl(v: any): string | null {
+  return typeof v === 'string' && v.trim() ? v.trim() : null
+}
+
+function normalizeImage(raw: any): LocalizedImage | null {
+  const v = parseMaybeJson(raw)
+  if (!v) return null
+
+  // A single plain URL → same image for both languages.
+  if (typeof v === 'string') {
+    const url = cleanUrl(v)
+    return url ? { ar: url, en: url } : null
+  }
+  if (typeof v !== 'object') return null
+
+  const ar = cleanUrl(v.ar)
+  const en = cleanUrl(v.en)
+  if (!ar && !en) return null
+  // If only one language has an image, use it for both.
+  return { ar: ar ?? en, en: en ?? ar }
+}
+
 function normalizeChoiceOptions(raw: any[]): QuestionOption[] {
-  return (raw ?? []).map((opt, i) => ({
-    id: opt.id ?? String(i),
+  return (Array.isArray(raw) ? raw : []).map((opt, i) => ({
+    id: opt.id !== undefined && opt.id !== null ? String(opt.id) : String(i),
     text: safeText(opt.text),
     is_correct: !!opt.is_correct,
     // seed data stores this under `feedback`; canonical field is `explanation`
     explanation: safeText(opt.explanation ?? opt.feedback),
   }))
+}
+
+function normalizeGroupedOptions(raw: any): GroupedGroup[] {
+  const groups = parseMaybeJson(raw)
+  if (!Array.isArray(groups)) return []
+
+  return groups.map((g: any, i: number) => {
+    const gid = g?.id !== undefined && g?.id !== null ? String(g.id) : `G_${i}`
+    const rawOptions = g?.goptions ?? g?.options ?? []
+
+    return {
+      id: gid,
+      title: safeText(g?.title),
+      feedback: safeText(g?.feedback ?? g?.explanation),
+      options: (Array.isArray(rawOptions) ? rawOptions : []).map((o: any, j: number) => ({
+        id: o?.id !== undefined && o?.id !== null ? String(o.id) : `${gid}_${j}`,
+        text: safeText(o?.text),
+        // the seed key is `iscorrect` (no underscore); accept the other spellings too
+        is_correct: !!(o?.iscorrect ?? o?.is_correct ?? o?.isCorrect),
+      })),
+    }
+  })
 }
 
 /**
@@ -200,8 +293,14 @@ function normalizeDndOptions(raw: any): DndOptions {
 
 function normalizeQuestion(raw: any): QuestionBankRow {
   const type = TYPE_MAP[raw.type] ?? 'single'
+  const rawOptions = parseMaybeJson(raw.options)
+
   const options =
-    type === 'dnd' ? normalizeDndOptions(raw.options) : normalizeChoiceOptions(raw.options)
+    type === 'dnd'
+      ? normalizeDndOptions(rawOptions)
+      : type === 'grouped'
+        ? normalizeGroupedOptions(rawOptions)
+        : normalizeChoiceOptions(rawOptions)
 
   return {
     id: raw.id,
@@ -210,6 +309,8 @@ function normalizeQuestion(raw: any): QuestionBankRow {
     type,
     question: safeText(raw.question),
     options,
+    image_url: normalizeImage(raw.image_url),
+    order: toNum(raw.order),
   }
 }
 
@@ -218,9 +319,19 @@ function normalizeQuizQuestionRow(raw: any): QuizQuestionRow {
     id: raw.id,
     quiz_id: raw.quiz_id,
     ques_id: raw.ques_id,
-    order: raw.order,
+    order: toNum(raw.order) ?? 0,
     question: normalizeQuestion(raw.question),
   }
+}
+
+/**
+ * The question's number inside the quiz comes from `questions_bank.order`.
+ * `quiz_questions.order` is only used as a fallback / tie-breaker.
+ */
+function compareQuestionRows(a: QuizQuestionRow, b: QuizQuestionRow): number {
+  const pa = a.question.order ?? a.order ?? 0
+  const pb = b.question.order ?? b.order ?? 0
+  return pa - pb || (a.order ?? 0) - (b.order ?? 0) || a.id - b.id
 }
 
 // =========================================================
@@ -250,9 +361,15 @@ export async function getCourseSectionsWithQuizzes(
 
   if (qErr) throw qErr
 
+  // Sort again in JS (by `course_quiz.order`, then id) so the order is
+  // guaranteed even if the column comes back as text or has ties.
+  const orderedQuizzes = (quizzes ?? [])
+    .slice()
+    .sort((a: any, b: any) => (toNum(a.order) ?? 0) - (toNum(b.order) ?? 0) || a.id - b.id)
+
   return sections.map((s) => ({
     ...s,
-    quizzes: (quizzes ?? []).filter((q) => q.section_id === s.id),
+    quizzes: orderedQuizzes.filter((q) => q.section_id === s.id),
   }))
 }
 
@@ -267,7 +384,7 @@ async function fetchQuizQuestionsNormalized(quizId: number): Promise<QuizQuestio
     .order('order', { ascending: true })
 
   if (error) throw error
-  return ((data ?? []) as any[]).map(normalizeQuizQuestionRow)
+  return ((data ?? []) as any[]).map(normalizeQuizQuestionRow).sort(compareQuestionRows)
 }
 
 export async function getQuizQuestions(quizId: number): Promise<QuizQuestionRow[]> {
@@ -299,6 +416,28 @@ export async function getUserAttemptsForCourse(
   return data ?? []
 }
 
+/**
+ * Fresh attempts (open + closed) for ONE quiz. The client calls this whenever
+ * a quiz is opened so the intro screen can reliably show "Resume" vs "Start"
+ * even if the page itself came from a cache.
+ */
+export async function getUserQuizAttempts(
+  userId: string,
+  quizId: number
+): Promise<QuizAttemptRow[]> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('quiz_attempt')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('quiz_id', quizId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return (data ?? []) as QuizAttemptRow[]
+}
+
 // =========================================================
 // Grading (pure, shared by submit + report — works on normalized data)
 // =========================================================
@@ -314,7 +453,8 @@ function hasAnswer(question: QuestionBankRow, userAnswer: any): boolean {
     return Array.isArray(userAnswer) && userAnswer.length > 0
   }
 
-  if (question.type === 'dnd') {
+  // dnd and grouped share the same answer shape: Record<id, string[]>
+  if (question.type === 'dnd' || question.type === 'grouped') {
     if (!userAnswer || typeof userAnswer !== 'object' || Array.isArray(userAnswer)) return false
     return Object.values(userAnswer).some((value) => Array.isArray(value) && value.length > 0)
   }
@@ -358,6 +498,22 @@ function gradeQuestion(question: QuestionBankRow, userAnswer: any): boolean {
     }
 
     return true
+  }
+
+  if (question.type === 'grouped') {
+    const groups = question.options as GroupedGroup[]
+    if (!groups.length) return false
+    const map = (userAnswer ?? {}) as Record<string, string[]>
+
+    // Every list must be answered EXACTLY right (all correct picks, no wrong ones).
+    return groups.every((group) => {
+      const expected = group.options
+        .filter((o) => o.is_correct)
+        .map((o) => o.id)
+        .sort()
+      const given = (Array.isArray(map[group.id]) ? map[group.id] : []).slice().sort()
+      return JSON.stringify(expected) === JSON.stringify(given)
+    })
   }
 
   return false
